@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation — Swarm AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="docs-page">
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="./" class="nav-logo">
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+        <path d="M50 5L93.3 27.5V72.5L50 95L6.7 72.5V27.5L50 5Z" stroke="currentColor" stroke-width="4" fill="none"/>
+        <path d="M50 25L72.5 37.5V62.5L50 75L27.5 62.5V37.5L50 25Z" stroke="currentColor" stroke-width="3" fill="none" opacity="0.6"/>
+        <circle cx="50" cy="50" r="8" fill="currentColor" opacity="0.8"/>
+      </svg>
+      <span>Swarm AI</span>
+    </a>
+    <div class="nav-links">
+      <a href="#quickstart">Quick Start</a>
+      <a href="#integration">Integration</a>
+      <a href="#profile">Profile</a>
+      <a href="#api">API</a>
+      <a href="https://github.com/euynahz/swarm-ai" class="nav-cta">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs-layout">
+<aside class="docs-sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-title">Getting Started</div>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#integration">Platform Integration</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-title">Concepts</div>
+    <a href="#profile">Profile Structure</a>
+    <a href="#confidence">Confidence Scoring</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-title">Reference</div>
+    <a href="#api">API Endpoints</a>
+    <a href="#scripts">Shell Scripts</a>
+    <a href="#admin">Admin API</a>
+  </div>
+</aside>
+
+<main class="docs-main">
+
+<section id="quickstart" class="doc-section">
+  <h1>Quick Start</h1>
+  <p>Get Swarm AI running locally in three steps.</p>
+
+  <h2>1. Clone and start the server</h2>
+  <pre><code>git clone https://github.com/euynahz/swarm-ai.git
+cd swarm-ai
+npm install
+npm run dev</code></pre>
+  <p>The server starts at <code>http://localhost:3777</code>. Verify with:</p>
+  <pre><code>curl http://localhost:3777/api/health</code></pre>
+
+  <h2>2. Register an agent</h2>
+  <pre><code>curl -X POST http://localhost:3777/api/v1/admin/agents \
+  -H "X-Admin-Token: swarm-admin-dev" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"my-agent","name":"My Agent"}'</code></pre>
+  <p>Save the returned <code>apiKey</code> &mdash; your agent needs it for all subsequent requests.</p>
+
+  <h2>3. Write and read your first profile entry</h2>
+  <pre><code># Write
+curl -X PATCH http://localhost:3777/api/v1/profile \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"layer":"identity","entries":{"name":"Alice","language":"en"}}'
+
+# Read
+curl http://localhost:3777/api/v1/profile \
+  -H "Authorization: Bearer YOUR_API_KEY"</code></pre>
+</section>
+
+<section id="integration" class="doc-section">
+  <h1>Platform Integration</h1>
+  <p>Swarm AI ships shell scripts that work with any agent platform. The key script is <code>bootstrap.sh</code>, which reads the user profile and outputs it as context text for injection into agent sessions.</p>
+
+  <h2>OpenClaw</h2>
+  <p>Add to your <code>AGENTS.md</code> under the "Every Session" checklist:</p>
+  <pre><code>Run `bash ~/.openclaw/workspace/skills/swarm-ai-skill/scripts/bootstrap.sh` to load user profile context</code></pre>
+
+  <h2>Claude Code</h2>
+  <p>Add to your project's <code>CLAUDE.md</code>:</p>
+  <pre><code>At the start of every task, run:
+  bash /path/to/skills/swarm-ai-skill/scripts/bootstrap.sh
+When you learn something new about the user, run:
+  bash /path/to/skills/swarm-ai-skill/scripts/observe.sh '[{"key":"...","value":"..."}]'</code></pre>
+
+  <h2>Cursor</h2>
+  <p>Add to <code>.cursorrules</code>:</p>
+  <pre><code>At session start, execute scripts/bootstrap.sh and use the output as user context.</code></pre>
+
+  <h2>Any other platform</h2>
+  <p>If your agent can execute shell commands, add this to its system prompt or startup instructions:</p>
+  <pre><code>Run `scripts/bootstrap.sh` and use the output as user context for personalization.</code></pre>
+
+  <h2>Configuration</h2>
+  <p>Copy <code>scripts/env.sh.example</code> to <code>scripts/env.sh</code> and set your API key:</p>
+  <pre><code>export SWARM_API_URL="http://localhost:3777"
+export SWARM_API_KEY="swarm_your_key_here"</code></pre>
+</section>
+
+<section id="profile" class="doc-section">
+  <h1>Profile Structure</h1>
+  <p>Profiles are organized into <strong>layers</strong> &mdash; free-form namespaces that group related knowledge.</p>
+
+  <div class="profile-demo">
+    <div class="profile-layers">
+      <div class="profile-layer"><div class="layer-header">identity</div><div class="layer-body"><div class="layer-field"><span class="field-key">name</span><span class="field-val">"Alice Chen"</span><span class="field-meta">confidence: 1.0</span></div><div class="layer-field"><span class="field-key">timezone</span><span class="field-val">"Asia/Shanghai"</span><span class="field-meta">confidence: 1.0</span></div></div></div>
+      <div class="profile-layer"><div class="layer-header">work</div><div class="layer-body"><div class="layer-field"><span class="field-key">tech_stack</span><span class="field-val">["TypeScript", "React"]</span><span class="field-meta">tags: dev</span></div><div class="layer-field"><span class="field-key">role</span><span class="field-val">"founder"</span><span class="field-meta">confidence: 0.9</span></div></div></div>
+      <div class="profile-layer"><div class="layer-header">context <span class="ttl-badge">24h TTL</span></div><div class="layer-body"><div class="layer-field"><span class="field-key">current_task</span><span class="field-val">"building swarm-ai"</span><span class="field-meta">auto-expires</span></div></div></div>
+    </div>
+  </div>
+
+  <h2 id="confidence">Confidence Scoring</h2>
+  <p>Every observation carries a <code>confidence</code> value between 0 and 1. When an agent submits an observation via the <code>/observe</code> endpoint:</p>
+  <ul>
+    <li>If the new confidence is <strong>higher</strong> than the existing value, the observation overwrites it.</li>
+    <li>If the new confidence is <strong>lower or equal</strong>, the existing value is preserved.</li>
+  </ul>
+  <p>This ensures that confirmed facts (confidence 1.0) are never overwritten by guesses (confidence 0.3), regardless of which agent submits them.</p>
+
+  <h2>Tags and Filtering</h2>
+  <p>Each profile entry can carry tags for categorization. Query by layer or tag:</p>
+  <pre><code># Filter by layer
+curl "http://localhost:3777/api/v1/profile?layer=work" -H "Authorization: Bearer $KEY"
+
+# Filter by tag
+curl "http://localhost:3777/api/v1/profile?tag=preference" -H "Authorization: Bearer $KEY"</code></pre>
+
+  <h2>Automatic Expiry</h2>
+  <p>Observations submitted to the <code>context</code> layer via <code>/observe</code> receive a default 24-hour TTL. Expired entries are automatically excluded from query results. Permanent layers like <code>identity</code> and <code>work</code> have no expiry.</p>
+</section>
+
+<section id="api" class="doc-section">
+  <h1>API Reference</h1>
+  <p>All agent endpoints require an <code>Authorization: Bearer &lt;api_key&gt;</code> header.</p>
+
+  <div class="api-table-wrap">
+    <table class="api-table">
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/profile</td><td>Read profile. Query params: <code>layer</code>, <code>tag</code></td></tr>
+        <tr><td><span class="method patch">PATCH</span></td><td>/api/v1/profile</td><td>Update entries. Body: <code>{"layer":"...","entries":{...}}</code></td></tr>
+        <tr><td><span class="method post">POST</span></td><td>/api/v1/profile/observe</td><td>Submit observations with confidence merging</td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/memory</td><td>Search memory. Query params: <code>q</code>, <code>tag</code>, <code>limit</code></td></tr>
+        <tr><td><span class="method post">POST</span></td><td>/api/v1/memory</td><td>Write memory. Body: <code>{"content":"...","tags":[...]}</code></td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/persona/me</td><td>Read current agent persona</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Observe Example</h2>
+  <div class="api-example">
+    <div class="api-example-header">POST /api/v1/profile/observe</div>
+    <pre><code>curl -X POST http://localhost:3777/api/v1/profile/observe \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "observations": [{
+      "layer": "work",
+      "key": "tech_stack",
+      "value": ["TypeScript", "React", "Next.js"],
+      "confidence": 0.9,
+      "tags": ["dev", "skills"]
+    }]
+  }'</code></pre>
+  </div>
+</section>
+
+<section id="scripts" class="doc-section">
+  <h1>Shell Scripts</h1>
+  <p>Located in <code>skill/swarm-ai-skill/scripts/</code>. All scripts source <code>env.sh</code> for configuration.</p>
+
+  <div class="api-table-wrap">
+    <table class="api-table">
+      <thead><tr><th>Script</th><th>Usage</th><th>When to Use</th></tr></thead>
+      <tbody>
+        <tr><td><code>bootstrap.sh</code></td><td>No args</td><td>Session start &mdash; outputs profile as context text</td></tr>
+        <tr><td><code>profile-read.sh</code></td><td><code>[layer] [tag]</code></td><td>Query specific profile data</td></tr>
+        <tr><td><code>profile-update.sh</code></td><td><code>&lt;layer&gt; &lt;json&gt;</code></td><td>Confirmed new user information</td></tr>
+        <tr><td><code>observe.sh</code></td><td><code>&lt;json_array&gt;</code></td><td>Discovered preferences or habits</td></tr>
+        <tr><td><code>memory-read.sh</code></td><td><code>[query]</code></td><td>Search historical context</td></tr>
+        <tr><td><code>memory-write.sh</code></td><td><code>&lt;content&gt; [tags]</code></td><td>Record significant events</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="admin" class="doc-section">
+  <h1>Admin API</h1>
+  <p>Admin endpoints require an <code>X-Admin-Token</code> header (default: <code>swarm-admin-dev</code>).</p>
+
+  <div class="api-table-wrap">
+    <table class="api-table">
+      <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method post">POST</span></td><td>/api/v1/admin/agents</td><td>Create agent. Body: <code>{"id":"...","name":"..."}</code></td></tr>
+        <tr><td><span class="method delete">DELETE</span></td><td>/api/v1/admin/agents/:id</td><td>Delete agent and revoke API key</td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/admin/profile</td><td>View all raw profile data</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <svg width="24" height="24" viewBox="0 0 100 100" fill="none"><path d="M50 5L93.3 27.5V72.5L50 95L6.7 72.5V27.5L50 5Z" stroke="currentColor" stroke-width="4" fill="none"/><circle cx="50" cy="50" r="8" fill="currentColor" opacity="0.6"/></svg>
+      <span>Swarm AI</span>
+    </div>
+    <div class="footer-links">
+      <a href="./">Home</a>
+      <a href="https://github.com/euynahz/swarm-ai">GitHub</a>
+    </div>
+    <p class="footer-copy">MIT License. Built for agents, by agents.</p>
+  </div>
+</footer>
+</body>
+</html>
