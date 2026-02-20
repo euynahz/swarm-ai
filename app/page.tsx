@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { locales, type Locale, type T } from './i18n';
 
 const ADMIN = 'swarm-admin-dev';
 const H = { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN };
@@ -28,21 +29,23 @@ function SourceBadge({ source }: { source?: string }) {
   );
 }
 
-const NAV: { id: Tab; label: string; icon: string }[] = [
-  { id: 'overview', label: '概览', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
-  { id: 'profile', label: '画像', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-  { id: 'agents', label: 'Agents', icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z' },
-  { id: 'memory', label: '记忆', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+const NAV: { id: Tab; icon: string }[] = [
+  { id: 'overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
+  { id: 'profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+  { id: 'agents', icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z' },
+  { id: 'memory', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
 ];
 
 export default function Dashboard() {
+  const [lang, setLang] = useState<Locale>('en');
+  const t = locales[lang];
   const [tab, setTab] = useState<Tab>('overview');
   const [profiles, setProfiles] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [memories, setMemories] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
   const [newAgent, setNewAgent] = useState({ id: '', name: '' });
-  const [newMemory, setNewMemory] = useState({ content: '', tags: '' });
+  const [newMemory, setNewMemory] = useState({ content: '', tags: '', type: 'observation' });
 
   const load = useCallback(async () => {
     const [p, a, m, h] = await Promise.all([
@@ -60,12 +63,12 @@ export default function Dashboard() {
     if (!newAgent.id) return;
     const res = await fetch('/api/v1/admin/agents', { method: 'POST', headers: H, body: JSON.stringify(newAgent) });
     const data = await res.json();
-    alert(`API Key: ${data.apiKey}\n\n请保存，不会再显示！`);
+    alert(t.agents.keyAlert(data.apiKey));
     setNewAgent({ id: '', name: '' }); load();
   };
 
   const deleteAgent = async (id: string) => {
-    if (!confirm(`删除 agent "${id}"？`)) return;
+    if (!confirm(t.agents.confirmDelete(id))) return;
     await fetch(`/api/v1/admin/agents/${id}`, { method: 'DELETE', headers: H });
     load();
   };
@@ -77,7 +80,7 @@ export default function Dashboard() {
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer swarm_0d86a37975104559b2ff17d847f2cf76' },
       body: JSON.stringify({ content: newMemory.content, tags: newMemory.tags ? newMemory.tags.split(',').map(t => t.trim()) : [] }),
     });
-    setNewMemory({ content: '', tags: '' }); load();
+    setNewMemory({ content: '', tags: '', type: 'observation' }); load();
   };
 
   // Group profiles by layer
@@ -96,8 +99,8 @@ export default function Dashboard() {
             <circle cx="50" cy="50" r="8" fill="var(--amber)" opacity="0.8"/>
           </svg>
           <div>
-            <div className="font-semibold text-sm">蜂群 AI</div>
-            <div className="text-xs" style={{ color: 'var(--text2)' }}>管理面板</div>
+            <div className="font-semibold text-sm">{t.brand}</div>
+            <div className="text-xs" style={{ color: 'var(--text2)' }}>{t.dashboard}</div>
           </div>
         </div>
         <nav className="flex-1 p-3">
@@ -109,22 +112,24 @@ export default function Dashboard() {
                 color: tab === n.id ? 'var(--amber)' : 'var(--text2)',
               }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={n.icon}/></svg>
-              {n.label}
+              {t.nav[n.id]}
             </button>
           ))}
         </nav>
         <div className="p-4 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text2)' }}>
-          {health ? <span style={{ color: 'var(--green)' }}>● 运行中</span> : <span style={{ color: 'var(--red)' }}>● 离线</span>}
+          {health ? <span style={{ color: 'var(--green)' }}>● {t.status.running}</span> : <span style={{ color: 'var(--red)' }}>● {t.status.offline}</span>}
           <span className="ml-2">v0.1.0</span>
+          <button onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} className="ml-3 px-1.5 py-0.5 rounded text-xs"
+            style={{ border: '1px solid var(--border)' }}>{lang === 'en' ? '中文' : 'EN'}</button>
         </div>
       </aside>
 
       {/* Main */}
       <main className="flex-1 p-8 overflow-auto" style={{ background: 'var(--bg)' }}>
-        {tab === 'overview' && <Overview profiles={profiles} agents={agents} memories={memories} health={health} setTab={setTab} />}
-        {tab === 'profile' && <ProfileView layers={layers} />}
-        {tab === 'agents' && <AgentsView agents={agents} newAgent={newAgent} setNewAgent={setNewAgent} addAgent={addAgent} deleteAgent={deleteAgent} />}
-        {tab === 'memory' && <MemoryView memories={memories} newMemory={newMemory} setNewMemory={setNewMemory} addMemory={addMemory} />}
+        {tab === 'overview' && <Overview t={t} profiles={profiles} agents={agents} memories={memories} health={health} setTab={setTab} />}
+        {tab === 'profile' && <ProfileView t={t} layers={layers} />}
+        {tab === 'agents' && <AgentsView t={t} agents={agents} newAgent={newAgent} setNewAgent={setNewAgent} addAgent={addAgent} deleteAgent={deleteAgent} />}
+        {tab === 'memory' && <MemoryView t={t} memories={memories} newMemory={newMemory} setNewMemory={setNewMemory} addMemory={addMemory} />}
       </main>
     </div>
   );
@@ -145,21 +150,19 @@ function Stat({ label, value, icon, onClick }: { label: string; value: string | 
 }
 
 /* ── Overview ── */
-function Overview({ profiles, agents, memories, health, setTab }: any) {
+function Overview({ t, profiles, agents, memories, health, setTab }: any) {
   const layerCount = new Set(profiles.map((p: any) => p.layer)).size;
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">概览</h1>
-      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>蜂群 AI 运行状态一览</p>
+      <h1 className="text-2xl font-bold mb-1">{t.overview.title}</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>{t.overview.subtitle}</p>
       <div className="grid grid-cols-4 gap-4 mb-10">
-        <Stat label="Agents" value={agents.length} icon="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" onClick={() => setTab('agents')} />
-        <Stat label="画像条目" value={profiles.length} icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" onClick={() => setTab('profile')} />
-        <Stat label="画像层" value={layerCount} icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" onClick={() => setTab('profile')} />
-        <Stat label="记忆" value={memories.length} icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" onClick={() => setTab('memory')} />
+        <Stat label={t.overview.agents} value={agents.length} icon="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" onClick={() => setTab('agents')} />
+        <Stat label={t.overview.profiles} value={profiles.length} icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" onClick={() => setTab('profile')} />
+        <Stat label={t.overview.layers} value={layerCount} icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" onClick={() => setTab('profile')} />
+        <Stat label={t.overview.memories} value={memories.length} icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" onClick={() => setTab('memory')} />
       </div>
-
-      {/* Recent activity */}
-      <h2 className="text-lg font-semibold mb-4">最近画像更新</h2>
+      <h2 className="text-lg font-semibold mb-4">{t.overview.recent}</h2>
       <div className="space-y-2">
         {profiles.slice(0, 8).map((p: any, i: number) => (
           <div key={i} className="flex items-center gap-4 rounded-lg px-4 py-3 text-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -169,30 +172,29 @@ function Overview({ profiles, agents, memories, health, setTab }: any) {
             <SourceBadge source={p.source} />
           </div>
         ))}
-        {profiles.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>暂无画像数据</p>}
+        {profiles.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{t.overview.noData}</p>}
       </div>
     </div>
   );
 }
 
 /* ── Agents View ── */
-function AgentsView({ agents, newAgent, setNewAgent, addAgent, deleteAgent }: any) {
+function AgentsView({ t, agents, newAgent, setNewAgent, addAgent, deleteAgent }: any) {
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">Agent 管理</h1>
-      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>注册、查看和删除 Agent</p>
+      <h1 className="text-2xl font-bold mb-1">{t.agents.title}</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>{t.agents.subtitle}</p>
 
-      {/* Add form */}
       <div className="flex gap-3 mb-8">
-        <input placeholder="Agent ID" value={newAgent.id} onChange={e => setNewAgent({ ...newAgent, id: e.target.value })}
+        <input placeholder={t.agents.idPlaceholder} value={newAgent.id} onChange={e => setNewAgent({ ...newAgent, id: e.target.value })}
           className="flex-1 rounded-lg px-4 py-2.5 text-sm outline-none transition-all focus:ring-1"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', '--tw-ring-color': 'var(--amber)' } as any} />
-        <input placeholder="名称" value={newAgent.name} onChange={e => setNewAgent({ ...newAgent, name: e.target.value })}
+        <input placeholder={t.agents.namePlaceholder} value={newAgent.name} onChange={e => setNewAgent({ ...newAgent, name: e.target.value })}
           className="flex-1 rounded-lg px-4 py-2.5 text-sm outline-none transition-all focus:ring-1"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', '--tw-ring-color': 'var(--amber)' } as any} />
         <button onClick={addAgent} className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5"
           style={{ background: 'var(--amber)', color: 'var(--bg)' }}>
-          + 添加
+          {t.agents.add}
         </button>
       </div>
 
@@ -217,26 +219,26 @@ function AgentsView({ agents, newAgent, setNewAgent, addAgent, deleteAgent }: an
               </span>
               <button onClick={() => deleteAgent(a.id)} className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
                 style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--red)' }}>
-                删除
+                {t.agents.delete}
               </button>
             </div>
           </div>
         ))}
-        {agents.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>暂无 Agent</p>}
+        {agents.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{t.agents.noAgents}</p>}
       </div>
     </div>
   );
 }
-function ProfileView({ layers }: { layers: Record<string, any[]> }) {
+function ProfileView({ t, layers }: { t: any; layers: Record<string, any[]> }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (l: string) => setOpen(p => ({ ...p, [l]: !p[l] }));
   const keys = Object.keys(layers);
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">用户画像</h1>
-      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>按层级浏览所有画像数据</p>
-      {keys.length === 0 && <p style={{ color: 'var(--text2)' }}>暂无数据，通过 Agent API 写入</p>}
+      <h1 className="text-2xl font-bold mb-1">{t.profile.title}</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>{t.profile.subtitle}</p>
+      {keys.length === 0 && <p style={{ color: 'var(--text2)' }}>{t.profile.noData}</p>}
       <div className="space-y-3">
         {keys.map(layer => (
           <div key={layer} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -244,7 +246,7 @@ function ProfileView({ layers }: { layers: Record<string, any[]> }) {
               style={{ background: 'rgba(240,168,48,0.06)' }}>
               <div className="flex items-center gap-3">
                 <span className="font-mono font-medium" style={{ color: 'var(--amber)' }}>{layer}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text2)' }}>{layers[layer].length} 条</span>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text2)' }}>{layers[layer].length} {t.profile.items}</span>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2"
                 style={{ transform: open[layer] !== false ? 'rotate(180deg)' : '', transition: 'transform 0.2s' }}>
@@ -274,7 +276,7 @@ function ProfileView({ layers }: { layers: Record<string, any[]> }) {
 }
 
 /* ── Memory View ── */
-function MemoryView({ memories, newMemory, setNewMemory, addMemory }: any) {
+function MemoryView({ t, memories, newMemory, setNewMemory, addMemory }: any) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[] | null>(null);
 
@@ -293,47 +295,47 @@ function MemoryView({ memories, newMemory, setNewMemory, addMemory }: any) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">记忆</h1>
-      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>跨 Agent 共享的记忆条目 — FTS5 全文检索</p>
+      <h1 className="text-2xl font-bold mb-1">{t.memory.title}</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>{t.memory.subtitle}</p>
 
       {/* Search */}
       <div className="flex gap-3 mb-6">
-        <input placeholder="搜索记忆（支持全文检索）..." value={search}
+        <input placeholder={t.memory.searchPlaceholder} value={search}
           onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && doSearch()}
           className="flex-1 rounded-lg px-4 py-2.5 text-sm outline-none"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
         <button onClick={doSearch} className="px-4 py-2.5 rounded-lg text-sm font-medium"
           style={{ background: 'var(--amber-glow)', color: 'var(--amber)', border: '1px solid rgba(240,168,48,0.3)' }}>
-          搜索
+          {t.memory.search}
         </button>
         {results && <button onClick={() => { setResults(null); setSearch(''); }} className="px-3 py-2.5 rounded-lg text-xs"
-          style={{ color: 'var(--text2)' }}>清除</button>}
+          style={{ color: 'var(--text2)' }}>{t.memory.clear}</button>}
       </div>
 
       {/* Add form */}
       <div className="rounded-xl p-5 mb-8" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <textarea placeholder="记忆内容..." value={newMemory.content} onChange={e => setNewMemory({ ...newMemory, content: e.target.value })}
+        <textarea placeholder={t.memory.contentPlaceholder} value={newMemory.content} onChange={e => setNewMemory({ ...newMemory, content: e.target.value })}
           rows={2} className="w-full rounded-lg px-4 py-3 text-sm outline-none resize-none mb-3"
           style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
         <div className="flex gap-3">
-          <input placeholder="标签" value={newMemory.tags} onChange={e => setNewMemory({ ...newMemory, tags: e.target.value })}
+          <input placeholder={t.memory.tagsPlaceholder} value={newMemory.tags} onChange={e => setNewMemory({ ...newMemory, tags: e.target.value })}
             className="flex-1 rounded-lg px-4 py-2.5 text-sm outline-none"
             style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           <select value={newMemory.type || 'observation'} onChange={e => setNewMemory({ ...newMemory, type: e.target.value })}
             className="rounded-lg px-3 py-2.5 text-sm outline-none"
             style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-            <option value="observation">观察</option>
-            <option value="fact">事实</option>
-            <option value="preference">偏好</option>
-            <option value="experience">经历</option>
+            <option value="observation">{t.memory.types.observation}</option>
+            <option value="fact">{t.memory.types.fact}</option>
+            <option value="preference">{t.memory.types.preference}</option>
+            <option value="experience">{t.memory.types.experience}</option>
           </select>
           <button onClick={addMemory} className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5"
-            style={{ background: 'var(--amber)', color: 'var(--bg)' }}>+ 写入</button>
+            style={{ background: 'var(--amber)', color: 'var(--bg)' }}>{t.memory.write}</button>
         </div>
       </div>
 
       <div className="space-y-3">
-        {results && <p className="text-xs mb-2" style={{ color: 'var(--text2)' }}>找到 {results.length} 条结果</p>}
+        {results && <p className="text-xs mb-2" style={{ color: 'var(--text2)' }}>{t.memory.results(results.length)}</p>}
         {display.map((m: any, i: number) => (
           <div key={m.id || i} className="rounded-xl px-5 py-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 mb-2">
@@ -341,7 +343,7 @@ function MemoryView({ memories, newMemory, setNewMemory, addMemory }: any) {
                 style={{ background: `${TYPE_COLORS[m.type] || 'var(--text2)'}18`, color: TYPE_COLORS[m.type] || 'var(--text2)' }}>
                 {m.type}</span>}
               {m.importance != null && m.importance !== 0.5 && (
-                <span className="text-xs" style={{ color: 'var(--text2)' }}>重要度: {m.importance}</span>
+                <span className="text-xs" style={{ color: 'var(--text2)' }}>{t.memory.importance}: {m.importance}</span>
               )}
             </div>
             <p className="text-sm mb-2" style={{ color: 'var(--text)' }}>{m.content}</p>
@@ -349,15 +351,15 @@ function MemoryView({ memories, newMemory, setNewMemory, addMemory }: any) {
               {(Array.isArray(m.entities) ? m.entities : []).map((e: string, j: number) => (
                 <span key={`e${j}`} className="px-2 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.12)', color: 'var(--blue)' }}>@{e}</span>
               ))}
-              {(Array.isArray(m.tags) ? m.tags : []).map((t: string, j: number) => (
-                <span key={`t${j}`} className="px-2 py-0.5 rounded" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{t}</span>
+              {(Array.isArray(m.tags) ? m.tags : []).map((tag: string, j: number) => (
+                <span key={`t${j}`} className="px-2 py-0.5 rounded" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{tag}</span>
               ))}
               <span className="ml-auto"><SourceBadge source={m.agent_id || m.source} /></span>
-              {m.created_at && <span>{new Date(m.created_at).toLocaleString('zh-CN')}</span>}
+              {m.created_at && <span>{new Date(m.created_at).toLocaleString()}</span>}
             </div>
           </div>
         ))}
-        {display.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{results ? '无匹配结果' : '暂无记忆'}</p>}
+        {display.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{results ? t.memory.noMatch : t.memory.noMemory}</p>}
       </div>
     </div>
   );
