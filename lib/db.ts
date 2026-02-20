@@ -16,9 +16,10 @@ db.exec(`CREATE TABLE IF NOT EXISTS users (
 )`);
 
 // Migrate: add columns if missing
-try { db.exec('ALTER TABLE users ADD COLUMN email TEXT UNIQUE'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN role TEXT DEFAULT \'user\''); } catch {}
+try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL'); } catch {}
 db.exec(`CREATE TABLE IF NOT EXISTS profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL REFERENCES users(id),
