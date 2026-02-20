@@ -275,40 +275,89 @@ function ProfileView({ layers }: { layers: Record<string, any[]> }) {
 
 /* ── Memory View ── */
 function MemoryView({ memories, newMemory, setNewMemory, addMemory }: any) {
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState<any[] | null>(null);
+
+  const doSearch = async () => {
+    if (!search.trim()) { setResults(null); return; }
+    const r = await fetch(`/api/v1/memory?q=${encodeURIComponent(search)}`, {
+      headers: { Authorization: 'Bearer swarm_0d86a37975104559b2ff17d847f2cf76' },
+    }).then(r => r.json()).catch(() => []);
+    setResults(Array.isArray(r) ? r : []);
+  };
+
+  const TYPE_COLORS: Record<string, string> = {
+    fact: 'var(--blue)', preference: 'var(--amber)', experience: 'var(--green)', observation: 'var(--text2)',
+  };
+  const display = results ?? memories;
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1">记忆</h1>
-      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>跨 Agent 共享的记忆条目</p>
+      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>跨 Agent 共享的记忆条目 — FTS5 全文检索</p>
 
+      {/* Search */}
+      <div className="flex gap-3 mb-6">
+        <input placeholder="搜索记忆（支持全文检索）..." value={search}
+          onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && doSearch()}
+          className="flex-1 rounded-lg px-4 py-2.5 text-sm outline-none"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        <button onClick={doSearch} className="px-4 py-2.5 rounded-lg text-sm font-medium"
+          style={{ background: 'var(--amber-glow)', color: 'var(--amber)', border: '1px solid rgba(240,168,48,0.3)' }}>
+          搜索
+        </button>
+        {results && <button onClick={() => { setResults(null); setSearch(''); }} className="px-3 py-2.5 rounded-lg text-xs"
+          style={{ color: 'var(--text2)' }}>清除</button>}
+      </div>
+
+      {/* Add form */}
       <div className="rounded-xl p-5 mb-8" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <textarea placeholder="记忆内容..." value={newMemory.content} onChange={e => setNewMemory({ ...newMemory, content: e.target.value })}
-          rows={3} className="w-full rounded-lg px-4 py-3 text-sm outline-none resize-none mb-3"
+          rows={2} className="w-full rounded-lg px-4 py-3 text-sm outline-none resize-none mb-3"
           style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
         <div className="flex gap-3">
-          <input placeholder="标签（逗号分隔）" value={newMemory.tags} onChange={e => setNewMemory({ ...newMemory, tags: e.target.value })}
+          <input placeholder="标签" value={newMemory.tags} onChange={e => setNewMemory({ ...newMemory, tags: e.target.value })}
             className="flex-1 rounded-lg px-4 py-2.5 text-sm outline-none"
             style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          <select value={newMemory.type || 'observation'} onChange={e => setNewMemory({ ...newMemory, type: e.target.value })}
+            className="rounded-lg px-3 py-2.5 text-sm outline-none"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            <option value="observation">观察</option>
+            <option value="fact">事实</option>
+            <option value="preference">偏好</option>
+            <option value="experience">经历</option>
+          </select>
           <button onClick={addMemory} className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5"
-            style={{ background: 'var(--amber)', color: 'var(--bg)' }}>
-            + 写入
-          </button>
+            style={{ background: 'var(--amber)', color: 'var(--bg)' }}>+ 写入</button>
         </div>
       </div>
 
       <div className="space-y-3">
-        {memories.map((m: any, i: number) => (
+        {results && <p className="text-xs mb-2" style={{ color: 'var(--text2)' }}>找到 {results.length} 条结果</p>}
+        {display.map((m: any, i: number) => (
           <div key={m.id || i} className="rounded-xl px-5 py-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              {m.type && <span className="text-xs px-2 py-0.5 rounded font-medium"
+                style={{ background: `${TYPE_COLORS[m.type] || 'var(--text2)'}18`, color: TYPE_COLORS[m.type] || 'var(--text2)' }}>
+                {m.type}</span>}
+              {m.importance != null && m.importance !== 0.5 && (
+                <span className="text-xs" style={{ color: 'var(--text2)' }}>重要度: {m.importance}</span>
+              )}
+            </div>
             <p className="text-sm mb-2" style={{ color: 'var(--text)' }}>{m.content}</p>
-            <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text2)' }}>
-              {m.tags && (Array.isArray(m.tags) ? m.tags : [m.tags]).map((t: string, j: number) => (
-                <span key={j} className="px-2 py-0.5 rounded" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{t}</span>
+            <div className="flex items-center gap-2 flex-wrap text-xs" style={{ color: 'var(--text2)' }}>
+              {(Array.isArray(m.entities) ? m.entities : []).map((e: string, j: number) => (
+                <span key={`e${j}`} className="px-2 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.12)', color: 'var(--blue)' }}>@{e}</span>
+              ))}
+              {(Array.isArray(m.tags) ? m.tags : []).map((t: string, j: number) => (
+                <span key={`t${j}`} className="px-2 py-0.5 rounded" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{t}</span>
               ))}
               <span className="ml-auto"><SourceBadge source={m.agent_id || m.source} /></span>
               {m.created_at && <span>{new Date(m.created_at).toLocaleString('zh-CN')}</span>}
             </div>
           </div>
         ))}
-        {memories.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>暂无记忆</p>}
+        {display.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{results ? '无匹配结果' : '暂无记忆'}</p>}
       </div>
     </div>
   );

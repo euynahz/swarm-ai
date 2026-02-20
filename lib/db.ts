@@ -35,8 +35,36 @@ db.exec(`CREATE TABLE IF NOT EXISTS memories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL REFERENCES users(id),
   key TEXT, content TEXT NOT NULL, source TEXT, tags TEXT,
+  type TEXT DEFAULT 'observation',
+  importance REAL DEFAULT 0.5,
+  entities TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 )`);
+
+// FTS5 full-text index on memories
+db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+  content, tags, entities, key,
+  content_rowid='id', content='memories'
+)`);
+
+// Triggers to keep FTS in sync
+try {
+  db.exec(`CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
+    INSERT INTO memories_fts(rowid, content, tags, entities, key) VALUES (new.id, new.content, new.tags, new.entities, new.key);
+  END`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
+    INSERT INTO memories_fts(memories_fts, rowid, content, tags, entities, key) VALUES ('delete', old.id, old.content, old.tags, old.entities, old.key);
+  END`);
+  db.exec(`CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
+    INSERT INTO memories_fts(memories_fts, rowid, content, tags, entities, key) VALUES ('delete', old.id, old.content, old.tags, old.entities, old.key);
+    INSERT INTO memories_fts(rowid, content, tags, entities, key) VALUES (new.id, new.content, new.tags, new.entities, new.key);
+  END`);
+} catch { /* triggers already exist */ }
+
+// Migrate: add columns if missing
+try { db.exec('ALTER TABLE memories ADD COLUMN type TEXT DEFAULT \'observation\''); } catch {}
+try { db.exec('ALTER TABLE memories ADD COLUMN importance REAL DEFAULT 0.5'); } catch {}
+try { db.exec('ALTER TABLE memories ADD COLUMN entities TEXT'); } catch {}
 
 export default db;
 
