@@ -16,7 +16,7 @@ export const POST = withAuth(async (req, agent) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${NOW_SQL})
     ON CONFLICT(user_id, layer, key) DO UPDATE SET
       value = CASE WHEN ${isPg ? 'EXCLUDED' : 'excluded'}.confidence > profiles.confidence THEN ${isPg ? 'EXCLUDED' : 'excluded'}.value ELSE profiles.value END,
-      confidence = GREATEST(profiles.confidence, ${isPg ? 'EXCLUDED' : 'excluded'}.confidence),
+      confidence = ${isPg ? `GREATEST(profiles.confidence, EXCLUDED.confidence)` : `MAX(profiles.confidence, excluded.confidence)`},
       source = CASE WHEN ${isPg ? 'EXCLUDED' : 'excluded'}.confidence > profiles.confidence THEN ${isPg ? 'EXCLUDED' : 'excluded'}.source ELSE profiles.source END,
       tags = COALESCE(${isPg ? 'EXCLUDED' : 'excluded'}.tags, profiles.tags),
       expires_at = COALESCE(${isPg ? 'EXCLUDED' : 'excluded'}.expires_at, profiles.expires_at),

@@ -2,10 +2,10 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import db, { isPg } from '@/lib/db';
 import { initSchema, logAudit } from '@/lib/schema';
-import { withAuth } from '@/lib/auth';
+import { withAuthOrAdmin } from '@/lib/auth';
 import { embed, cosine } from '@/lib/embedding';
 
-export const GET = withAuth(async (req, agent) => {
+export const GET = withAuthOrAdmin(async (req, agent) => {
   await initSchema();
   const { searchParams } = req.nextUrl;
   const q = searchParams.get('q');
@@ -71,7 +71,7 @@ export const GET = withAuth(async (req, agent) => {
   })));
 });
 
-export const POST = withAuth(async (req, agent) => {
+export const POST = withAuthOrAdmin(async (req, agent) => {
   await initSchema();
   if (!agent.permissions.includes('write')) return NextResponse.json({ error: 'No write permission' }, { status: 403 });
   const { key, content, tags, type, importance, entities } = await req.json();

@@ -65,7 +65,7 @@ export default function Dashboard() {
     const [p, a, m, hh, al, ph] = await Promise.all([
       fetch('/api/v1/admin/profile', { headers: h }).then(r => r.json()).catch(() => []),
       fetch('/api/v1/admin/agents', { headers: h }).then(r => r.json()).catch(() => []),
-      fetch('/api/v1/memory?limit=50', { headers: { Authorization: `Bearer swarm_0d86a37975104559b2ff17d847f2cf76` } }).then(r => r.json()).catch(() => []),
+      fetch('/api/v1/memory?limit=50', { headers: h }).then(r => r.json()).catch(() => []),
       fetch('/api/health').then(r => r.json()).catch(() => null),
       fetch('/api/v1/admin/audit?limit=50', { headers: h }).then(r => r.json()).catch(() => []),
       fetch('/api/v1/admin/history?limit=50', { headers: h }).then(r => r.json()).catch(() => []),
@@ -95,7 +95,7 @@ export default function Dashboard() {
     if (!newMemory.content) return;
     await fetch('/api/v1/memory', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer swarm_0d86a37975104559b2ff17d847f2cf76' },
+      headers: H,
       body: JSON.stringify({ content: newMemory.content, tags: newMemory.tags ? newMemory.tags.split(',').map(t => t.trim()) : [] }),
     });
     setNewMemory({ content: '', tags: '', type: 'observation' }); load();
@@ -164,8 +164,8 @@ export default function Dashboard() {
       <main className="flex-1 p-8 overflow-auto" style={{ background: 'var(--bg)' }}>
         {tab === 'overview' && <Overview t={t} profiles={profiles} agents={agents} memories={memories} health={health} setTab={setTab} />}
         {tab === 'profile' && <ProfileView t={t} layers={layers} />}
-        {tab === 'agents' && <AgentsView t={t} agents={agents} newAgent={newAgent} setNewAgent={setNewAgent} addAgent={addAgent} deleteAgent={deleteAgent} />}
-        {tab === 'memory' && <MemoryView t={t} memories={memories} newMemory={newMemory} setNewMemory={setNewMemory} addMemory={addMemory} />}
+        {tab === 'agents' && <AgentsView t={t} agents={agents} newAgent={newAgent} setNewAgent={setNewAgent} addAgent={addAgent} deleteAgent={deleteAgent} H={H} />}
+        {tab === 'memory' && <MemoryView t={t} memories={memories} newMemory={newMemory} setNewMemory={setNewMemory} addMemory={addMemory} H={H} />}
         {tab === 'audit' && <AuditView t={t} auditLogs={auditLogs} profileHistory={profileHistory} />}
       </main>
     </div>
@@ -216,7 +216,7 @@ function Overview({ t, profiles, agents, memories, health, setTab }: any) {
 }
 
 /* ── Agents View ── */
-function AgentsView({ t, agents, newAgent, setNewAgent, addAgent, deleteAgent }: any) {
+function AgentsView({ t, agents, newAgent, setNewAgent, addAgent, deleteAgent, H }: any) {
   const [editing, setEditing] = useState<string | null>(null);
   const [personaText, setPersonaText] = useState('');
 
@@ -229,7 +229,7 @@ function AgentsView({ t, agents, newAgent, setNewAgent, addAgent, deleteAgent }:
     try {
       const persona = JSON.parse(personaText);
       await fetch('/api/v1/admin/agents', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'swarm-admin-dev' },
+        method: 'PATCH', headers: H,
         body: JSON.stringify({ id, persona }),
       });
       setEditing(null); window.location.reload();
@@ -356,14 +356,14 @@ function ProfileView({ t, layers }: { t: any; layers: Record<string, any[]> }) {
 }
 
 /* ── Memory View ── */
-function MemoryView({ t, memories, newMemory, setNewMemory, addMemory }: any) {
+function MemoryView({ t, memories, newMemory, setNewMemory, addMemory, H }: any) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[] | null>(null);
 
   const doSearch = async () => {
     if (!search.trim()) { setResults(null); return; }
     const r = await fetch(`/api/v1/memory?q=${encodeURIComponent(search)}`, {
-      headers: { Authorization: 'Bearer swarm_0d86a37975104559b2ff17d847f2cf76' },
+      headers: H,
     }).then(r => r.json()).catch(() => []);
     setResults(Array.isArray(r) ? r : []);
   };

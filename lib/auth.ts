@@ -66,3 +66,25 @@ export function withAdmin(handler: (req: NextRequest, userId: string) => Promise
 }
 
 export { initSchema } from './schema';
+
+export function withAuthOrAdmin(handler: (req: NextRequest, agent: { id: string; userId: string; permissions: string }) => Promise<NextResponse>) {
+  return async (req: NextRequest) => {
+    // Try agent API key first
+    const key = req.headers.get('authorization')?.replace('Bearer ', '');
+    if (key) {
+      const agent = await getAgentByKey(key);
+      if (agent) return handler(req, agent);
+      // Try JWT
+      const payload = verifyJwt(key);
+      if (payload?.userId) return handler(req, { id: 'admin', userId: payload.userId, permissions: 'read,write' });
+    }
+    // Try admin token
+    const token = req.headers.get('x-admin-token') || req.nextUrl.searchParams.get('token');
+    if (token === (process.env.SWARM_ADMIN_TOKEN || 'swarm-admin-dev')) {
+      const { ensureDefaultUser } = await import('./schema');
+      const userId = await ensureDefaultUser();
+      return handler(req, { id: 'admin', userId, permissions: 'read,write' });
+    }
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  };
+}
