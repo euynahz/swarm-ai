@@ -1,8 +1,11 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db, { isPg } from '@/lib/db';
+import { initSchema } from '@/lib/schema';
 import { withAuth } from '@/lib/auth';
 
 export const GET = withAuth(async (req, agent) => {
+  await initSchema();
   const { searchParams } = req.nextUrl;
   const q = searchParams.get('q');
   const tag = searchParams.get('tag');
@@ -15,17 +18,22 @@ export const GET = withAuth(async (req, agent) => {
 
   if (q) {
     const hasCJK = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/.test(q);
-    if (hasCJK) {
-      // CJK: FTS5 default tokenizer can't segment Chinese, fall back to LIKE
-      sql = `SELECT * FROM memories WHERE user_id = ? AND content LIKE ? ORDER BY created_at DESC LIMIT ?`;
-      params = [agent.userId, `%${q}%`, limit];
+    if (isPg) {
+      sql = hasCJK
+        ? `SELECT * FROM memories WHERE user_id = ? AND content LIKE ? ORDER BY created_at DESC LIMIT ?`
+        : `SELECT *, ts_rank(to_tsvector('english', content), plainto_tsquery('english', ?)) AS rank
+           FROM memories WHERE user_id = ? AND to_tsvector('english', content) @@ plainto_tsquery('english', ?)
+           ORDER BY rank DESC LIMIT ?`;
+      params = hasCJK ? [agent.userId, `%${q}%`, limit] : [q, agent.userId, q, limit];
     } else {
-      // Latin/English: FTS5 full-text search with ranking
-      sql = `SELECT m.*, rank FROM memories m
-        JOIN memories_fts ON memories_fts.rowid = m.id
-        WHERE m.user_id = ? AND memories_fts MATCH ?
-        ORDER BY rank LIMIT ?`;
-      params = [agent.userId, q, limit];
+      if (hasCJK) {
+        sql = `SELECT * FROM memories WHERE user_id = ? AND content LIKE ? ORDER BY created_at DESC LIMIT ?`;
+        params = [agent.userId, `%${q}%`, limit];
+      } else {
+        sql = `SELECT m.*, rank FROM memories m JOIN memories_fts ON memories_fts.rowid = m.id
+          WHERE m.user_id = ? AND memories_fts MATCH ? ORDER BY rank LIMIT ?`;
+        params = [agent.userId, q, limit];
+      }
     }
   } else {
     sql = 'SELECT * FROM memories WHERE user_id = ?';
@@ -38,7 +46,7 @@ export const GET = withAuth(async (req, agent) => {
     params.push(limit);
   }
 
-  const rows = db.prepare(sql).all(...params) as any[];
+  const rows = await db.prepare(sql).all(...params) as any[];
   return NextResponse.json(rows.map(r => ({
     ...r,
     tags: r.tags?.split(',').filter(Boolean) || [],
@@ -47,6 +55,7 @@ export const GET = withAuth(async (req, agent) => {
 });
 
 export const POST = withAuth(async (req, agent) => {
+  await initSchema();
   if (!agent.permissions.includes('write')) return NextResponse.json({ error: 'No write permission' }, { status: 403 });
   const { key, content, tags, type, importance, entities } = await req.json();
   if (!content) return NextResponse.json({ error: 'Missing content' }, { status: 400 });
@@ -54,10 +63,9 @@ export const POST = withAuth(async (req, agent) => {
   const tagsStr = Array.isArray(tags) ? tags.join(',') : tags || null;
   const entStr = Array.isArray(entities) ? entities.join(',') : entities || null;
 
-  db.prepare(`INSERT INTO memories (user_id, key, content, source, tags, type, importance, entities)
+  await db.prepare(`INSERT INTO memories (user_id, key, content, source, tags, type, importance, entities)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(agent.userId, key || null, content, agent.id, tagsStr,
-      type || 'observation', importance ?? 0.5, entStr);
+    .run(agent.userId, key || null, content, agent.id, tagsStr, type || 'observation', importance ?? 0.5, entStr);
 
   return NextResponse.json({ ok: true });
 });

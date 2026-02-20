@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAgentByKey } from './db';
+import { getAgentByKey } from './schema';
 import { createHmac, randomUUID, scryptSync, randomBytes } from 'crypto';
 
 const JWT_SECRET = process.env.SWARM_JWT_SECRET || 'change-me-in-production';
@@ -42,7 +42,7 @@ export function withAuth(handler: (req: NextRequest, agent: { id: string; userId
   return async (req: NextRequest) => {
     const key = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!key) return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
-    const agent = getAgentByKey(key);
+    const agent = await getAgentByKey(key);
     if (!agent) return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
     return handler(req, agent);
   };
@@ -53,8 +53,8 @@ export function withAdmin(handler: (req: NextRequest, userId: string) => Promise
     // Accept admin token OR JWT from admin user
     const token = req.headers.get('x-admin-token') || req.nextUrl.searchParams.get('token');
     if (token === (process.env.SWARM_ADMIN_TOKEN || 'swarm-admin-dev')) {
-      const { ensureDefaultUser } = await import('./db');
-      return handler(req, ensureDefaultUser());
+      const { ensureDefaultUser } = await import('./schema');
+      return handler(req, await ensureDefaultUser());
     }
     const jwt = req.headers.get('authorization')?.replace('Bearer ', '');
     if (jwt) {
@@ -64,3 +64,5 @@ export function withAdmin(handler: (req: NextRequest, userId: string) => Promise
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   };
 }
+
+export { initSchema } from './schema';
