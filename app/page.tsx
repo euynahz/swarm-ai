@@ -3,7 +3,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { locales, type Locale, type T } from './i18n';
 
 const ADMIN = 'swarm-admin-dev';
-const H = { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN };
+
+function getHeaders(token?: string): Record<string, string> {
+  return token
+    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+    : { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN };
+}
 
 type Tab = 'overview' | 'profile' | 'agents' | 'memory';
 
@@ -39,6 +44,7 @@ const NAV: { id: Tab; icon: string }[] = [
 export default function Dashboard() {
   const [lang, setLang] = useState<Locale>('en');
   const t = locales[lang];
+  const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [profiles, setProfiles] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
@@ -47,15 +53,21 @@ export default function Dashboard() {
   const [newAgent, setNewAgent] = useState({ id: '', name: '' });
   const [newMemory, setNewMemory] = useState({ content: '', tags: '', type: 'observation' });
 
+  useEffect(() => { setToken(localStorage.getItem('swarm_token')); }, []);
+
+  const H = getHeaders(token ?? undefined);
+
   const load = useCallback(async () => {
-    const [p, a, m, h] = await Promise.all([
-      fetch('/api/v1/admin/profile', { headers: H }).then(r => r.json()).catch(() => []),
-      fetch('/api/v1/admin/agents', { headers: H }).then(r => r.json()).catch(() => []),
-      fetch('/api/v1/memory?limit=50', { headers: { Authorization: 'Bearer swarm_0d86a37975104559b2ff17d847f2cf76' } }).then(r => r.json()).catch(() => []),
+    const h = getHeaders(token ?? undefined);
+    const [p, a, m, hh] = await Promise.all([
+      fetch('/api/v1/admin/profile', { headers: h }).then(r => r.json()).catch(() => []),
+      fetch('/api/v1/admin/agents', { headers: h }).then(r => r.json()).catch(() => []),
+      fetch('/api/v1/memory?limit=50', { headers: { Authorization: `Bearer swarm_0d86a37975104559b2ff17d847f2cf76` } }).then(r => r.json()).catch(() => []),
       fetch('/api/health').then(r => r.json()).catch(() => null),
     ]);
-    setProfiles(p); setAgents(a); setMemories(Array.isArray(m) ? m : []); setHealth(h);
-  }, []);
+    setProfiles(Array.isArray(p) ? p : []); setAgents(Array.isArray(a) ? a : []);
+    setMemories(Array.isArray(m) ? m : []); setHealth(hh);
+  }, [token]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -82,6 +94,18 @@ export default function Dashboard() {
     });
     setNewMemory({ content: '', tags: '', type: 'observation' }); load();
   };
+
+  const handleLogin = (jwt: string) => { localStorage.setItem('swarm_token', jwt); setToken(jwt); };
+  const handleLogout = () => { localStorage.removeItem('swarm_token'); setToken(null); };
+  const handleExport = async () => {
+    const data = await fetch('/api/v1/admin/export', { headers: H }).then(r => r.json());
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'swarm-export.json' }).click();
+  };
+
+  if (token === null && typeof window !== 'undefined' && !localStorage.getItem('swarm_token')) {
+    return <LoginScreen t={t} lang={lang} setLang={setLang} onLogin={handleLogin} />;
+  }
 
   // Group profiles by layer
   const layers = profiles.reduce((acc: Record<string, any[]>, p: any) => {
@@ -119,8 +143,14 @@ export default function Dashboard() {
         <div className="p-4 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text2)' }}>
           {health ? <span style={{ color: 'var(--green)' }}>● {t.status.running}</span> : <span style={{ color: 'var(--red)' }}>● {t.status.offline}</span>}
           <span className="ml-2">v0.1.0</span>
-          <button onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} className="ml-3 px-1.5 py-0.5 rounded text-xs"
-            style={{ border: '1px solid var(--border)' }}>{lang === 'en' ? '中文' : 'EN'}</button>
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} className="px-1.5 py-0.5 rounded"
+              style={{ border: '1px solid var(--border)' }}>{lang === 'en' ? '中文' : 'EN'}</button>
+            <button onClick={handleExport} className="px-1.5 py-0.5 rounded"
+              style={{ border: '1px solid var(--border)' }}>{t.auth.export}</button>
+            {token && <button onClick={handleLogout} className="px-1.5 py-0.5 rounded"
+              style={{ border: '1px solid var(--border)', color: 'var(--red)' }}>{t.auth.logout}</button>}
+          </div>
         </div>
       </aside>
 
@@ -180,6 +210,25 @@ function Overview({ t, profiles, agents, memories, health, setTab }: any) {
 
 /* ── Agents View ── */
 function AgentsView({ t, agents, newAgent, setNewAgent, addAgent, deleteAgent }: any) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [personaText, setPersonaText] = useState('');
+
+  const startEdit = (a: any) => {
+    setEditing(a.id);
+    setPersonaText(a.persona ? JSON.stringify(a.persona, null, 2) : '{\n  "personality": "",\n  "instructions": ""\n}');
+  };
+
+  const savePersona = async (id: string) => {
+    try {
+      const persona = JSON.parse(personaText);
+      await fetch('/api/v1/admin/agents', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'swarm-admin-dev' },
+        body: JSON.stringify({ id, persona }),
+      });
+      setEditing(null); window.location.reload();
+    } catch { alert('Invalid JSON'); }
+  };
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1">{t.agents.title}</h1>
@@ -201,8 +250,8 @@ function AgentsView({ t, agents, newAgent, setNewAgent, addAgent, deleteAgent }:
       {/* Agent list */}
       <div className="space-y-3">
         {agents.map((a: any) => (
-          <div key={a.id} className="flex items-center justify-between rounded-xl px-5 py-4 transition-all"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div key={a.id} className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between px-5 py-4">
             <div className="flex items-center gap-4">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold"
                 style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>
@@ -213,15 +262,39 @@ function AgentsView({ t, agents, newAgent, setNewAgent, addAgent, deleteAgent }:
                 <div className="font-mono text-xs" style={{ color: 'var(--text2)' }}>{a.id}</div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(52,211,153,0.1)', color: 'var(--green)' }}>
                 {a.permissions || 'read,write'}
               </span>
+              <button onClick={() => editing === a.id ? setEditing(null) : startEdit(a)} className="text-xs px-3 py-1.5 rounded-lg"
+                style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>
+                {t.agents.editPersona}
+              </button>
               <button onClick={() => deleteAgent(a.id)} className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
                 style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--red)' }}>
                 {t.agents.delete}
               </button>
             </div>
+            </div>
+            {editing === a.id && (
+              <div className="px-5 pb-4 pt-0">
+                <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text2)' }}>{t.agents.persona} (JSON)</label>
+                <textarea value={personaText} onChange={e => setPersonaText(e.target.value)} rows={6}
+                  className="w-full rounded-lg px-4 py-3 text-xs font-mono outline-none resize-none mb-3"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                <div className="flex gap-2">
+                  <button onClick={() => savePersona(a.id)} className="px-4 py-2 rounded-lg text-xs font-semibold"
+                    style={{ background: 'var(--amber)', color: 'var(--bg)' }}>{t.agents.save}</button>
+                  <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg text-xs"
+                    style={{ color: 'var(--text2)' }}>{t.agents.cancel}</button>
+                </div>
+              </div>
+            )}
+            {a.persona && editing !== a.id && (
+              <div className="px-5 pb-3 text-xs font-mono truncate" style={{ color: 'var(--text2)' }}>
+                {JSON.stringify(a.persona)}
+              </div>
+            )}
           </div>
         ))}
         {agents.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{t.agents.noAgents}</p>}
@@ -360,6 +433,66 @@ function MemoryView({ t, memories, newMemory, setNewMemory, addMemory }: any) {
           </div>
         ))}
         {display.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{results ? t.memory.noMatch : t.memory.noMemory}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Login Screen ── */
+function LoginScreen({ t, lang, setLang, onLogin }: { t: any; lang: string; setLang: (fn: any) => void; onLogin: (jwt: string) => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setError('');
+    const res = await fetch('/api/v1/auth', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: mode, email, password, name: name || undefined }),
+    });
+    const data = await res.json();
+    if (data.token) onLogin(data.token);
+    else setError(data.error || t.auth.error);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+      <div className="w-full max-w-sm rounded-2xl p-8" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-3 mb-2">
+          <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
+            <path d="M50 5L93.3 27.5V72.5L50 95L6.7 72.5V27.5L50 5Z" stroke="var(--amber)" strokeWidth="4" fill="none"/>
+            <circle cx="50" cy="50" r="8" fill="var(--amber)" opacity="0.8"/>
+          </svg>
+          <h1 className="text-xl font-bold">{t.auth.title}</h1>
+        </div>
+        <p className="text-sm mb-6" style={{ color: 'var(--text2)' }}>{t.auth.subtitle}</p>
+        {error && <p className="text-xs mb-3 px-3 py-2 rounded" style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--red)' }}>{error}</p>}
+        {mode === 'register' && (
+          <input placeholder={t.auth.name} value={name} onChange={e => setName(e.target.value)}
+            className="w-full rounded-lg px-4 py-2.5 text-sm outline-none mb-3"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        )}
+        <input placeholder={t.auth.email} type="email" value={email} onChange={e => setEmail(e.target.value)}
+          className="w-full rounded-lg px-4 py-2.5 text-sm outline-none mb-3"
+          style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        <input placeholder={t.auth.password} type="password" value={password} onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          className="w-full rounded-lg px-4 py-2.5 text-sm outline-none mb-4"
+          style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        <button onClick={submit} className="w-full py-2.5 rounded-lg text-sm font-semibold mb-3"
+          style={{ background: 'var(--amber)', color: 'var(--bg)' }}>
+          {mode === 'login' ? t.auth.login : t.auth.register}
+        </button>
+        <div className="flex justify-between text-xs">
+          <button onClick={() => setMode(m => m === 'login' ? 'register' : 'login')} style={{ color: 'var(--amber)' }}>
+            {mode === 'login' ? t.auth.switchToRegister : t.auth.switchToLogin}
+          </button>
+          <button onClick={() => setLang((l: string) => l === 'en' ? 'zh' : 'en')} style={{ color: 'var(--text2)' }}>
+            {lang === 'en' ? '中文' : 'EN'}
+          </button>
+        </div>
       </div>
     </div>
   );

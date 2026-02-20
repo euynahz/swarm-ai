@@ -4,6 +4,14 @@ export const locales = {
     dashboard: 'Dashboard',
     nav: { overview: 'Overview', profile: 'Profiles', agents: 'Agents', memory: 'Memory' },
     status: { running: 'Running', offline: 'Offline' },
+    auth: {
+      title: 'Swarm AI',
+      subtitle: 'Cross-agent user profile hub',
+      email: 'Email', password: 'Password', name: 'Name (optional)',
+      login: 'Sign In', register: 'Create Account',
+      switchToRegister: 'No account? Register', switchToLogin: 'Have an account? Sign in',
+      error: 'Authentication failed', logout: 'Logout', export: 'Export',
+    },
     overview: {
       title: 'Overview',
       subtitle: 'Swarm AI system status at a glance',
@@ -19,7 +27,7 @@ export const locales = {
     },
     agents: {
       title: 'Agent Management',
-      subtitle: 'Register, view and remove agents',
+      subtitle: 'Register, view and manage agents',
       idPlaceholder: 'Agent ID',
       namePlaceholder: 'Name',
       add: '+ Add',
@@ -27,6 +35,10 @@ export const locales = {
       noAgents: 'No agents registered',
       keyAlert: (k: string) => `API Key: ${k}\n\nSave it now — it won't be shown again!`,
       confirmDelete: (id: string) => `Delete agent "${id}"?`,
+      editPersona: 'Edit Persona',
+      persona: 'Persona',
+      personaPlaceholder: '{"personality":"...","instructions":"..."}',
+      save: 'Save', cancel: 'Cancel',
     },
     memory: {
       title: 'Memory',
@@ -49,6 +61,14 @@ export const locales = {
     dashboard: '管理面板',
     nav: { overview: '概览', profile: '画像', agents: 'Agents', memory: '记忆' },
     status: { running: '运行中', offline: '离线' },
+    auth: {
+      title: '蜂群 AI',
+      subtitle: '跨 Agent 用户画像中心',
+      email: '邮箱', password: '密码', name: '名称（可选）',
+      login: '登录', register: '注册',
+      switchToRegister: '没有账号？注册', switchToLogin: '已有账号？登录',
+      error: '认证失败', logout: '退出', export: '导出',
+    },
     overview: {
       title: '概览',
       subtitle: '蜂群 AI 运行状态一览',
@@ -64,7 +84,7 @@ export const locales = {
     },
     agents: {
       title: 'Agent 管理',
-      subtitle: '注册、查看和删除 Agent',
+      subtitle: '注册、查看和管理 Agent',
       idPlaceholder: 'Agent ID',
       namePlaceholder: '名称',
       add: '+ 添加',
@@ -72,6 +92,10 @@ export const locales = {
       noAgents: '暂无 Agent',
       keyAlert: (k: string) => `API Key: ${k}\n\n请保存，不会再显示！`,
       confirmDelete: (id: string) => `删除 agent "${id}"？`,
+      editPersona: '编辑人设',
+      persona: '人设',
+      personaPlaceholder: '{"personality":"...","instructions":"..."}',
+      save: '保存', cancel: '取消',
     },
     memory: {
       title: '记忆',

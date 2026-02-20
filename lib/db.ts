@@ -10,8 +10,15 @@ db.exec('PRAGMA journal_mode = WAL');
 db.exec('PRAGMA foreign_keys = ON');
 
 db.exec(`CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY, name TEXT, created_at TEXT DEFAULT (datetime('now'))
+  id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE,
+  password_hash TEXT, role TEXT DEFAULT 'user',
+  created_at TEXT DEFAULT (datetime('now'))
 )`);
+
+// Migrate: add columns if missing
+try { db.exec('ALTER TABLE users ADD COLUMN email TEXT UNIQUE'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN role TEXT DEFAULT \'user\''); } catch {}
 db.exec(`CREATE TABLE IF NOT EXISTS profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL REFERENCES users(id),

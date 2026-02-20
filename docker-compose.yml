@@ -1,0 +1,14 @@
+services:
+  swarm:
+    build: .
+    ports:
+      - "3777:3777"
+    volumes:
+      - swarm-data:/app/data
+    environment:
+      - SWARM_ADMIN_TOKEN=${SWARM_ADMIN_TOKEN:-swarm-admin-dev}
+      - SWARM_JWT_SECRET=${SWARM_JWT_SECRET:-change-me-in-production}
+    restart: unless-stopped
+
+volumes:
+  swarm-data:
