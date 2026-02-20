@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import db, { isPg } from '@/lib/db';
 import { initSchema } from '@/lib/schema';
 import { withAuth } from '@/lib/auth';
+import { embed, cosine } from '@/lib/embedding';
 
 export const GET = withAuth(async (req, agent) => {
   await initSchema();
@@ -13,6 +14,22 @@ export const GET = withAuth(async (req, agent) => {
   const entity = searchParams.get('entity');
   const since = searchParams.get('since');
   const limit = Number(searchParams.get('limit') || 50);
+
+  const mode = searchParams.get('mode'); // 'semantic' | null (default: fts)
+
+  // Semantic search mode
+  if (q && mode === 'semantic') {
+    const qVec = await embed(q);
+    const all = await db.prepare('SELECT * FROM memories WHERE user_id = ? AND embedding IS NOT NULL ORDER BY created_at DESC')
+      .all(agent.userId) as any[];
+    const scored = all.map(m => ({ ...m, score: cosine(qVec, JSON.parse(m.embedding)) }))
+      .sort((a, b) => b.score - a.score).slice(0, limit);
+    return NextResponse.json(scored.map(r => ({
+      ...r, embedding: undefined,
+      tags: r.tags?.split(',').filter(Boolean) || [],
+      entities: r.entities?.split(',').filter(Boolean) || [],
+    })));
+  }
 
   let sql: string, params: any[];
 
@@ -63,9 +80,15 @@ export const POST = withAuth(async (req, agent) => {
   const tagsStr = Array.isArray(tags) ? tags.join(',') : tags || null;
   const entStr = Array.isArray(entities) ? entities.join(',') : entities || null;
 
-  await db.prepare(`INSERT INTO memories (user_id, key, content, source, tags, type, importance, entities)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(agent.userId, key || null, content, agent.id, tagsStr, type || 'observation', importance ?? 0.5, entStr);
+  await db.prepare(`INSERT INTO memories (user_id, key, content, source, tags, type, importance, entities, embedding)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(agent.userId, key || null, content, agent.id, tagsStr, type || 'observation', importance ?? 0.5, entStr, null);
+
+  // Background embed — don't block response
+  embed(content).then(async vec => {
+    const rows = await db.prepare('SELECT id FROM memories WHERE user_id = ? AND content = ? ORDER BY id DESC LIMIT 1').all(agent.userId, content) as any[];
+    if (rows[0]) await db.prepare('UPDATE memories SET embedding = ? WHERE id = ?').run(JSON.stringify(vec), rows[0].id);
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 });

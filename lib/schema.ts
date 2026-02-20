@@ -73,6 +73,7 @@ export async function initSchema() {
       "ALTER TABLE memories ADD COLUMN type TEXT DEFAULT 'observation'",
       'ALTER TABLE memories ADD COLUMN importance REAL DEFAULT 0.5',
       'ALTER TABLE memories ADD COLUMN entities TEXT',
+      'ALTER TABLE memories ADD COLUMN embedding TEXT',
     ]) { try { await db.exec(sql); } catch {} }
   } else {
     // PostgreSQL full-text search index
