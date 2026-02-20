@@ -1,0 +1,24 @@
+{
+  "name": "swarm-ai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3777",
+    "build": "next build",
+    "start": "next start -p 3777"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "next": "^15.3.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.8",
+    "@types/node": "^24.0.3",
+    "@types/react": "^19.1.6",
+    "tailwindcss": "^4.1.8",
+    "typescript": "^5.8.3"
+  }
+}
