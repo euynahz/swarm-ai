@@ -262,8 +262,101 @@ a:hover { color: var(--amber2); }
 .footer-links a:hover { color: var(--amber); }
 .footer-copy { color: var(--text2); font-size: 0.8rem; }
 
+/* ===== Animations ===== */
+
+/* Hero entrance */
+.hero-content { opacity: 0; animation: heroIn 1s ease-out 0.3s forwards; }
+@keyframes heroIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.hero-eyebrow { opacity: 0; animation: fadeSlideUp 0.6s ease-out 0.5s forwards; }
+.hero h1 { opacity: 0; animation: fadeSlideUp 0.8s ease-out 0.7s forwards; }
+.hero-sub { opacity: 0; animation: fadeSlideUp 0.6s ease-out 1s forwards; }
+.hero-actions { opacity: 0; animation: fadeSlideUp 0.6s ease-out 1.2s forwards; }
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Accent card glow pulse */
+.silo-card-accent { animation: glowPulse 3s ease-in-out infinite; }
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(240,168,48,0.1); }
+  50% { box-shadow: 0 0 40px rgba(240,168,48,0.25), 0 0 80px rgba(240,168,48,0.08); }
+}
+
+/* Staggered children reveal */
+.section .stagger { opacity: 0; transform: translateY(24px); transition: opacity 0.5s ease-out, transform 0.5s ease-out; }
+.section.visible .stagger { opacity: 1; transform: translateY(0); }
+.section.visible .stagger:nth-child(1) { transition-delay: 0.1s; }
+.section.visible .stagger:nth-child(2) { transition-delay: 0.2s; }
+.section.visible .stagger:nth-child(3) { transition-delay: 0.3s; }
+.section.visible .stagger:nth-child(4) { transition-delay: 0.4s; }
+.section.visible .stagger:nth-child(5) { transition-delay: 0.5s; }
+.section.visible .stagger:nth-child(6) { transition-delay: 0.6s; }
+
+/* Step line grow */
+.step-line { width: 0; transition: width 0.8s ease-out; }
+.section.visible .step .step-line { width: 40px; }
+.section.visible .step:nth-child(1) .step-line { transition-delay: 0.2s; }
+.section.visible .step:nth-child(2) .step-line { transition-delay: 0.4s; }
+.section.visible .step:nth-child(3) .step-line { transition-delay: 0.6s; }
+
+/* Feature card hover glow */
+.feature-card { position: relative; overflow: hidden; }
+.feature-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: 12px;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(240,168,48,0.08) 0%, transparent 60%);
+  opacity: 0; transition: opacity 0.3s;
+}
+.feature-card:hover::after { opacity: 1; }
+
+/* Arch server pulse */
+.arch-server { animation: serverGlow 4s ease-in-out infinite; }
+@keyframes serverGlow {
+  0%, 100% { box-shadow: 0 12px 40px rgba(240,168,48,0.15); }
+  50% { box-shadow: 0 16px 60px rgba(240,168,48,0.35); }
+}
+
+/* Arch node hover */
+.arch-node { transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s; }
+.arch-node:hover {
+  transform: translateY(-3px); border-color: var(--amber);
+  box-shadow: 0 4px 20px rgba(240,168,48,0.1);
+}
+
+/* Data flow dots on arch lines */
+@keyframes flowDot {
+  0% { offset-distance: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+/* Nav slide in */
+.nav { animation: navSlide 0.5s ease-out; }
+@keyframes navSlide {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+/* Floating particles */
+.particle {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--amber); opacity: 0; z-index: 0;
+  animation: particleFloat linear infinite;
+}
+@keyframes particleFloat {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  15% { opacity: 0.6; transform: scale(1); }
+  85% { opacity: 0.3; }
+  100% { opacity: 0; transform: translateY(-120px) scale(0.5); }
+}
+
 /* Scroll animations */
-.section { opacity: 0; transform: translateY(30px); transition: opacity 0.6s, transform 0.6s; }
+.section { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
 .section.visible { opacity: 1; transform: translateY(0); }
 
 /* Responsive */
