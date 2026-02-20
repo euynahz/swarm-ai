@@ -81,6 +81,30 @@ export async function initSchema() {
       await db.exec(`CREATE INDEX IF NOT EXISTS idx_memories_fts ON memories USING gin(to_tsvector('english', content))`);
     } catch {}
   }
+
+  // Audit log table
+  await db.exec(`CREATE TABLE IF NOT EXISTS audit_log (
+    id ${AUTO_ID},
+    user_id TEXT NOT NULL,
+    agent_id TEXT,
+    action TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT,
+    detail TEXT,
+    created_at TEXT DEFAULT (${NOW})
+  )`);
+
+  // Profile history table
+  await db.exec(`CREATE TABLE IF NOT EXISTS profile_history (
+    id ${AUTO_ID},
+    user_id TEXT NOT NULL,
+    layer TEXT NOT NULL,
+    key TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT NOT NULL,
+    source TEXT,
+    created_at TEXT DEFAULT (${NOW})
+  )`);
 }
 
 export async function getAgentByKey(apiKey: string) {
@@ -97,4 +121,14 @@ export async function ensureDefaultUser() {
     return 'default';
   }
   return user.id;
+}
+
+export async function logAudit(userId: string, agentId: string | null, action: string, targetType: string, targetId?: string, detail?: string) {
+  await db.prepare('INSERT INTO audit_log (user_id, agent_id, action, target_type, target_id, detail) VALUES (?,?,?,?,?,?)')
+    .run(userId, agentId, action, targetType, targetId || null, detail || null);
+}
+
+export async function logProfileHistory(userId: string, layer: string, key: string, oldValue: string | null, newValue: string, source: string) {
+  await db.prepare('INSERT INTO profile_history (user_id, layer, key, old_value, new_value, source) VALUES (?,?,?,?,?,?)')
+    .run(userId, layer, key, oldValue, newValue, source);
 }

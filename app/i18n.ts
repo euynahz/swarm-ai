@@ -2,7 +2,7 @@ export const locales = {
   en: {
     brand: 'Swarm AI',
     dashboard: 'Dashboard',
-    nav: { overview: 'Overview', profile: 'Profiles', agents: 'Agents', memory: 'Memory' },
+    nav: { overview: 'Overview', profile: 'Profiles', agents: 'Agents', memory: 'Memory', audit: 'Audit Log' },
     status: { running: 'Running', offline: 'Offline' },
     auth: {
       title: 'Swarm AI',
@@ -55,11 +55,19 @@ export const locales = {
       noMemory: 'No memories yet',
       types: { observation: 'Observation', fact: 'Fact', preference: 'Preference', experience: 'Experience' },
     },
+    audit: {
+      title: 'Audit Log',
+      subtitle: 'Track all API actions and profile changes',
+      noData: 'No audit entries yet',
+      action: 'Action', agent: 'Agent', target: 'Target', detail: 'Detail', time: 'Time',
+      historyTitle: 'Profile Change History',
+      oldValue: 'Old', newValue: 'New',
+    },
   },
   zh: {
     brand: '蜂群 AI',
     dashboard: '管理面板',
-    nav: { overview: '概览', profile: '画像', agents: 'Agents', memory: '记忆' },
+    nav: { overview: '概览', profile: '画像', agents: 'Agents', memory: '记忆', audit: '审计日志' },
     status: { running: '运行中', offline: '离线' },
     auth: {
       title: '蜂群 AI',
@@ -111,6 +119,14 @@ export const locales = {
       noMatch: '无匹配结果',
       noMemory: '暂无记忆',
       types: { observation: '观察', fact: '事实', preference: '偏好', experience: '经历' },
+    },
+    audit: {
+      title: '审计日志',
+      subtitle: '追踪所有 API 操作和画像变更',
+      noData: '暂无审计记录',
+      action: '操作', agent: 'Agent', target: '目标', detail: '详情', time: '时间',
+      historyTitle: '画像变更历史',
+      oldValue: '旧值', newValue: '新值',
     },
   },
 } as const;

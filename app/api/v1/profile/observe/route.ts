@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import db, { isPg } from '@/lib/db';
-import { initSchema } from '@/lib/schema';
+import { initSchema, logAudit } from '@/lib/schema';
 import { withAuth } from '@/lib/auth';
 
 const NOW_SQL = isPg ? 'NOW()' : "datetime('now')";
@@ -29,5 +29,6 @@ export const POST = withAuth(async (req, agent) => {
     await db.prepare(upsertSql).run(agent.userId, obs.layer || 'context', obs.key, JSON.stringify(obs.value),
       obs.confidence ?? 0.5, agent.id, tags, obs.expiresAt || defaultExpiry);
   }
+  await logAudit(agent.userId, agent.id, 'profile.observe', 'profile', undefined, `${observations.length} observations`);
   return NextResponse.json({ ok: true, count: observations.length });
 });

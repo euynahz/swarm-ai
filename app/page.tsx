@@ -10,7 +10,7 @@ function getHeaders(token?: string): Record<string, string> {
     : { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN };
 }
 
-type Tab = 'overview' | 'profile' | 'agents' | 'memory';
+type Tab = 'overview' | 'profile' | 'agents' | 'memory' | 'audit';
 
 const AGENT_COLORS: Record<string, string> = {};
 const PALETTE = ['#f0a830','#60a5fa','#34d399','#f87171','#a78bfa','#fb923c','#38bdf8','#4ade80'];
@@ -39,6 +39,7 @@ const NAV: { id: Tab; icon: string }[] = [
   { id: 'profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
   { id: 'agents', icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z' },
   { id: 'memory', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  { id: 'audit', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
 ];
 
 export default function Dashboard() {
@@ -49,6 +50,8 @@ export default function Dashboard() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [memories, setMemories] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [profileHistory, setProfileHistory] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
   const [newAgent, setNewAgent] = useState({ id: '', name: '' });
   const [newMemory, setNewMemory] = useState({ content: '', tags: '', type: 'observation' });
@@ -59,14 +62,17 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     const h = getHeaders(token ?? undefined);
-    const [p, a, m, hh] = await Promise.all([
+    const [p, a, m, hh, al, ph] = await Promise.all([
       fetch('/api/v1/admin/profile', { headers: h }).then(r => r.json()).catch(() => []),
       fetch('/api/v1/admin/agents', { headers: h }).then(r => r.json()).catch(() => []),
       fetch('/api/v1/memory?limit=50', { headers: { Authorization: `Bearer swarm_0d86a37975104559b2ff17d847f2cf76` } }).then(r => r.json()).catch(() => []),
       fetch('/api/health').then(r => r.json()).catch(() => null),
+      fetch('/api/v1/admin/audit?limit=50', { headers: h }).then(r => r.json()).catch(() => []),
+      fetch('/api/v1/admin/history?limit=50', { headers: h }).then(r => r.json()).catch(() => []),
     ]);
     setProfiles(Array.isArray(p) ? p : []); setAgents(Array.isArray(a) ? a : []);
     setMemories(Array.isArray(m) ? m : []); setHealth(hh);
+    setAuditLogs(Array.isArray(al) ? al : []); setProfileHistory(Array.isArray(ph) ? ph : []);
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
@@ -160,6 +166,7 @@ export default function Dashboard() {
         {tab === 'profile' && <ProfileView t={t} layers={layers} />}
         {tab === 'agents' && <AgentsView t={t} agents={agents} newAgent={newAgent} setNewAgent={setNewAgent} addAgent={addAgent} deleteAgent={deleteAgent} />}
         {tab === 'memory' && <MemoryView t={t} memories={memories} newMemory={newMemory} setNewMemory={setNewMemory} addMemory={addMemory} />}
+        {tab === 'audit' && <AuditView t={t} auditLogs={auditLogs} profileHistory={profileHistory} />}
       </main>
     </div>
   );
@@ -433,6 +440,72 @@ function MemoryView({ t, memories, newMemory, setNewMemory, addMemory }: any) {
           </div>
         ))}
         {display.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{results ? t.memory.noMatch : t.memory.noMemory}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Audit View ── */
+function AuditView({ t, auditLogs, profileHistory }: { t: any; auditLogs: any[]; profileHistory: any[] }) {
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-1">{t.audit.title}</h1>
+      <p className="text-sm mb-8" style={{ color: 'var(--text2)' }}>{t.audit.subtitle}</p>
+
+      {/* Audit Log Table */}
+      <div className="rounded-xl overflow-hidden mb-10" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--text2)' }}>{t.audit.action}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--text2)' }}>{t.audit.agent}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--text2)' }}>{t.audit.target}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--text2)' }}>{t.audit.detail}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--text2)' }}>{t.audit.time}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {auditLogs.map((log: any, i: number) => (
+                <tr key={log.id || i} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td className="px-4 py-2.5"><span className="px-2 py-0.5 rounded text-xs font-medium"
+                    style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{log.action}</span></td>
+                  <td className="px-4 py-2.5"><SourceBadge source={log.agent_id} /></td>
+                  <td className="px-4 py-2.5 text-xs font-mono" style={{ color: 'var(--text2)' }}>{log.target_type}{log.target_id ? `:${log.target_id}` : ''}</td>
+                  <td className="px-4 py-2.5 text-xs truncate max-w-[200px]" style={{ color: 'var(--text2)' }}>{log.detail}</td>
+                  <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text2)' }}>{log.created_at && new Date(log.created_at).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {auditLogs.length === 0 && <p className="p-6 text-sm text-center" style={{ color: 'var(--text2)' }}>{t.audit.noData}</p>}
+      </div>
+
+      {/* Profile Change History */}
+      <h2 className="text-lg font-semibold mb-4">{t.audit.historyTitle}</h2>
+      <div className="space-y-3">
+        {profileHistory.map((h: any, i: number) => (
+          <div key={h.id || i} className="rounded-xl px-5 py-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{h.layer}</span>
+              <span className="font-mono text-sm" style={{ color: 'var(--blue)' }}>{h.key}</span>
+              <SourceBadge source={h.source} />
+              <span className="ml-auto text-xs" style={{ color: 'var(--text2)' }}>{h.created_at && new Date(h.created_at).toLocaleString()}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="font-medium" style={{ color: 'var(--text2)' }}>{t.audit.oldValue}:</span>
+                <pre className="mt-1 p-2 rounded overflow-x-auto" style={{ background: 'var(--bg)', color: 'rgba(248,113,113,0.8)' }}>{h.old_value || '—'}</pre>
+              </div>
+              <div>
+                <span className="font-medium" style={{ color: 'var(--text2)' }}>{t.audit.newValue}:</span>
+                <pre className="mt-1 p-2 rounded overflow-x-auto" style={{ background: 'var(--bg)', color: 'rgba(52,211,153,0.8)' }}>{h.new_value}</pre>
+              </div>
+            </div>
+          </div>
+        ))}
+        {profileHistory.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>{t.audit.noData}</p>}
       </div>
     </div>
   );

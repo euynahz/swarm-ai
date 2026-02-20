@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import db, { isPg } from '@/lib/db';
-import { initSchema } from '@/lib/schema';
+import { initSchema, logAudit, logProfileHistory } from '@/lib/schema';
 import { withAuth } from '@/lib/auth';
 
 const NOW = isPg ? 'NOW()' : "datetime('now')";
@@ -50,7 +50,11 @@ export const PATCH = withAuth(async (req, agent) => {
   for (const [key, val] of Object.entries(entries)) {
     const v = typeof val === 'object' && val !== null && 'value' in (val as any) ? (val as any) : { value: val };
     const tags = Array.isArray(v.tags) ? v.tags.join(',') : v.tags || null;
+    // Get old value for history
+    const old = await db.prepare('SELECT value FROM profiles WHERE user_id = ? AND layer = ? AND key = ?').get(agent.userId, layer, key) as any;
     await db.prepare(upsertSql).run(agent.userId, layer, key, JSON.stringify(v.value), v.confidence ?? 1.0, agent.id, tags, v.expiresAt || null);
+    await logProfileHistory(agent.userId, layer, key, old?.value || null, JSON.stringify(v.value), agent.id);
   }
+  await logAudit(agent.userId, agent.id, 'profile.update', 'profile', layer, `${Object.keys(entries).length} entries`);
   return NextResponse.json({ ok: true });
 });

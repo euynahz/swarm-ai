@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import db, { isPg } from '@/lib/db';
-import { initSchema } from '@/lib/schema';
+import { initSchema, logAudit } from '@/lib/schema';
 import { withAuth } from '@/lib/auth';
 import { embed, cosine } from '@/lib/embedding';
 
@@ -90,5 +90,6 @@ export const POST = withAuth(async (req, agent) => {
     if (rows[0]) await db.prepare('UPDATE memories SET embedding = ? WHERE id = ?').run(JSON.stringify(vec), rows[0].id);
   }).catch(() => {});
 
+  await logAudit(agent.userId, agent.id, 'memory.write', 'memory', key || undefined, content.slice(0, 100));
   return NextResponse.json({ ok: true });
 });
