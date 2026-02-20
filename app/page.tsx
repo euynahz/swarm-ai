@@ -6,6 +6,28 @@ const H = { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN };
 
 type Tab = 'overview' | 'profile' | 'agents' | 'memory';
 
+const AGENT_COLORS: Record<string, string> = {};
+const PALETTE = ['#f0a830','#60a5fa','#34d399','#f87171','#a78bfa','#fb923c','#38bdf8','#4ade80'];
+function agentColor(id: string) {
+  if (!id) return '#9898a8';
+  if (!AGENT_COLORS[id]) AGENT_COLORS[id] = PALETTE[Object.keys(AGENT_COLORS).length % PALETTE.length];
+  return AGENT_COLORS[id];
+}
+
+function SourceBadge({ source }: { source?: string }) {
+  if (!source) return null;
+  const c = agentColor(source);
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap"
+      style={{ background: `${c}18`, color: c, border: `1px solid ${c}30` }}>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+      </svg>
+      {source}
+    </span>
+  );
+}
+
 const NAV: { id: Tab; label: string; icon: string }[] = [
   { id: 'overview', label: '概览', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
   { id: 'profile', label: '画像', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
@@ -144,7 +166,7 @@ function Overview({ profiles, agents, memories, health, setTab }: any) {
             <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{p.layer}</span>
             <span className="font-mono" style={{ color: 'var(--blue)' }}>{p.key}</span>
             <span className="flex-1 truncate font-mono text-xs" style={{ color: 'var(--text2)' }}>{JSON.stringify(p.value)}</span>
-            <span className="text-xs" style={{ color: 'var(--text2)' }}>by {p.source || '—'}</span>
+            <SourceBadge source={p.source} />
           </div>
         ))}
         {profiles.length === 0 && <p className="text-sm" style={{ color: 'var(--text2)' }}>暂无画像数据</p>}
@@ -239,7 +261,7 @@ function ProfileView({ layers }: { layers: Record<string, any[]> }) {
                       {p.confidence != null && <>conf: {p.confidence}</>}
                       {p.tags && <span className="ml-2">{p.tags}</span>}
                     </span>
-                    <span className="text-xs" style={{ color: 'var(--text2)' }}>{p.source || ''}</span>
+                    <SourceBadge source={p.source} />
                   </div>
                 ))}
               </div>
@@ -281,7 +303,7 @@ function MemoryView({ memories, newMemory, setNewMemory, addMemory }: any) {
               {m.tags && (Array.isArray(m.tags) ? m.tags : [m.tags]).map((t: string, j: number) => (
                 <span key={j} className="px-2 py-0.5 rounded" style={{ background: 'var(--amber-glow)', color: 'var(--amber)' }}>{t}</span>
               ))}
-              <span className="ml-auto">{m.agent_id || ''}</span>
+              <span className="ml-auto"><SourceBadge source={m.agent_id || m.source} /></span>
               {m.created_at && <span>{new Date(m.created_at).toLocaleString('zh-CN')}</span>}
             </div>
           </div>
