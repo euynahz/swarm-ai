@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'n
 import { join, resolve } from 'node:path';
 import { homedir, platform, arch } from 'node:os';
 
-const REPO = 'https://github.com/peonai/swarm-ai.git';
+const REPO = 'https://github.com/euynahz/swarm-ai.git';
 const AMBER = '\x1b[38;2;240;168;48m';
 const DIM = '\x1b[2m';
 const BOLD = '\x1b[1m';
@@ -82,6 +82,13 @@ async function setup(rl) {
   const dataDir = resolve(await ask(rl, 'Install directory', defaultDir));
   const port = await ask(rl, 'Port', '3777');
   const adminToken = await ask(rl, 'Admin token', 'swarm-admin-dev');
+
+  head('Embedding (for semantic memory search)');
+  log(`${DIM}OpenAI-compatible embedding API. Leave blank to disable semantic search.${R}`);
+  const embedUrl = await ask(rl, 'Embedding API URL', '');
+  const embedKey = await ask(rl, 'Embedding API Key', '');
+  const embedModel = embedUrl ? await ask(rl, 'Embedding model', 'text-embedding-3-small') : '';
+
   const asService = await confirm(rl, 'Install as background service?', true);
 
   // ── Clone / update ──
@@ -107,17 +114,21 @@ async function setup(rl) {
 
   // ── Write config ──
   const configPath = join(dataDir, 'config.json');
-  const config = { port: Number(port), adminToken, serverDir, service: asService };
+  const config = { port: Number(port), adminToken, serverDir, service: asService, embedUrl, embedKey, embedModel };
   writeFileSync(configPath, JSON.stringify(config, null, 2));
   ok(`Config saved → ${configPath}`);
 
   // ── Write .env ──
   const envPath = join(serverDir, '.env.local');
-  writeFileSync(envPath, [
+  const envLines = [
     `PORT=${port}`,
     `SWARM_ADMIN_TOKEN=${adminToken}`,
     `SWARM_DATA_DIR=${dataDir}/data`,
-  ].join('\n') + '\n');
+  ];
+  if (embedUrl) envLines.push(`EMBED_URL=${embedUrl}`);
+  if (embedKey) envLines.push(`EMBED_KEY=${embedKey}`);
+  if (embedModel) envLines.push(`EMBED_MODEL=${embedModel}`);
+  writeFileSync(envPath, envLines.join('\n') + '\n');
   mkdirSync(join(dataDir, 'data'), { recursive: true });
   ok('.env.local written');
 

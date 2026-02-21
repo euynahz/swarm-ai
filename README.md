@@ -36,13 +36,6 @@ npx @peonai/swarm status   # check health
 
 Dashboard at `http://localhost:3777`.
 
-### Alternative: Docker
-
-```bash
-docker compose up -d
-# PostgreSQL + Swarm AI on port 3777
-```
-
 ### Alternative: Manual
 
 ```bash
@@ -230,7 +223,6 @@ When learning user preferences, use scripts/observe.sh to record them.
 - **Reflect** — auto-extract profile insights from accumulated memories
 - **Dual Database** — SQLite (dev) / PostgreSQL (prod), same codebase
 - **One-Command Install** — `npx @peonai/swarm` with interactive setup and optional service mode
-- **Docker Ready** — `docker compose up -d` one-liner deployment
 - **Management UI** — dark amber dashboard with i18n (EN/中文)
 - **7 Agent Platforms** — OpenClaw / Claude Code / Codex / Gemini CLI / OpenCode / iFlow / Cursor
 - **4 Integration Methods** — REST API / Shell Scripts / MCP Server / OpenAPI
@@ -272,7 +264,7 @@ When learning user preferences, use scripts/observe.sh to record them.
 - **Auth**: API Key + JWT (scrypt + HMAC-SHA256, zero deps)
 - **Embeddings**: Qwen3-Embedding (2560-dim, OpenAI-compatible API)
 - **UI**: React 19 + Tailwind v4
-- **Deploy**: Docker Compose
+- **Deploy**: npx / Manual
 
 ## License
 

@@ -7,7 +7,7 @@ function H(): Record<string, string> {
   return { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN };
 }
 
-type Tab = 'overview' | 'profile' | 'agents' | 'memory' | 'audit';
+type Tab = 'overview' | 'profile' | 'agents' | 'memory' | 'audit' | 'settings';
 
 const PALETTE = ['#f0a830','#60a5fa','#34d399','#f87171','#a78bfa','#fb923c','#38bdf8','#4ade80'];
 const AC: Record<string, string> = {};
@@ -38,6 +38,7 @@ const NAV: { id: Tab; icon: string; }[] = [
   { id: 'agents', icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z' },
   { id: 'memory', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
   { id: 'audit', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { id: 'settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
 
 /* ══════════════════════════════════════════
@@ -157,6 +158,7 @@ export default function Dashboard() {
             {tab === 'agents' && <AgentsView t={t} agents={agents} newAgent={newAgent} setNewAgent={setNewAgent} addAgent={addAgent} deleteAgent={deleteAgent} />}
             {tab === 'memory' && <MemoryView t={t} memories={memories} newMemory={newMemory} setNewMemory={setNewMemory} addMemory={addMemory} />}
             {tab === 'audit' && <AuditView t={t} auditLogs={auditLogs} profileHistory={profileHistory} />}
+            {tab === 'settings' && <SettingsView t={t} />}
           </div>
         </main>
       </div>
@@ -462,6 +464,97 @@ function AuditView({ t, auditLogs, profileHistory }: { t: any; auditLogs: any[];
           </div>
         ))}
         {profileHistory.length === 0 && <div className="empty-state"><p className="text-xs">{t.audit.noData}</p></div>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Settings View ── */
+function SettingsView({ t }: { t: any }) {
+  const [cfg, setCfg] = useState({ url: '', key: '', model: '' });
+  const [enabled, setEnabled] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/v1/admin/settings', { headers: H() }).then(r => r.json()).then(d => {
+      if (d.embedding) {
+        setCfg({ url: d.embedding.url || '', key: '', model: d.embedding.model || '' });
+        setEnabled(d.embedding.enabled);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const save = async () => {
+    await fetch('/api/v1/admin/settings', {
+      method: 'PATCH', headers: H(),
+      body: JSON.stringify({ embedding: { url: cfg.url, key: cfg.key || undefined, model: cfg.model } }),
+    });
+    setMsg(t.settings.saved);
+    setTimeout(() => setMsg(''), 4000);
+  };
+
+  const test = async () => {
+    setTesting(true); setMsg('');
+    try {
+      const res = await fetch(cfg.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
+        body: JSON.stringify({ model: cfg.model || 'text-embedding-3-small', input: 'test' }),
+      });
+      setMsg(res.ok ? t.settings.testOk : `${t.settings.testFail}: ${res.status}`);
+    } catch (e: any) { setMsg(`${t.settings.testFail}: ${e.message}`); }
+    setTesting(false);
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold">{t.settings.title}</h1>
+        <p className="text-xs" style={{ color: 'var(--text2)' }}>{t.settings.subtitle}</p>
+      </div>
+      <div className="glow-card p-5" style={{ border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-sm font-semibold">{t.settings.embedding}</h2>
+          <span className="badge" style={{
+            background: enabled ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)',
+            color: enabled ? 'var(--green)' : 'var(--red)',
+          }}>{enabled ? t.settings.enabled : t.settings.disabled}</span>
+        </div>
+        <p className="text-xs mb-4" style={{ color: 'var(--text2)' }}>{t.settings.embedDesc}</p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text2)' }}>{t.settings.url}</label>
+            <input value={cfg.url} onChange={e => setCfg({ ...cfg, url: e.target.value })}
+              placeholder={t.settings.urlPlaceholder}
+              className="w-full rounded-lg px-3 py-2 text-xs font-mono"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text2)' }}>{t.settings.key}</label>
+            <input type="password" value={cfg.key} onChange={e => setCfg({ ...cfg, key: e.target.value })}
+              placeholder={t.settings.keyPlaceholder}
+              className="w-full rounded-lg px-3 py-2 text-xs font-mono"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: 'var(--text2)' }}>{t.settings.model}</label>
+            <input value={cfg.model} onChange={e => setCfg({ ...cfg, model: e.target.value })}
+              placeholder={t.settings.modelPlaceholder}
+              className="w-full rounded-lg px-3 py-2 text-xs font-mono"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-4">
+          <button onClick={save} className="btn-amber px-4 py-2 text-xs">{t.settings.save}</button>
+          {cfg.url && cfg.key && (
+            <button onClick={test} disabled={testing} className="px-3 py-2 rounded-lg text-xs"
+              style={{ background: 'var(--amber-glow)', color: 'var(--amber)', border: '1px solid rgba(240,168,48,0.2)' }}>
+              {testing ? t.settings.testing : t.settings.test}
+            </button>
+          )}
+          {msg && <span className="text-xs ml-2" style={{ color: msg.includes('OK') || msg.includes('保存') || msg.includes('Saved') || msg.includes('成功') ? 'var(--green)' : 'var(--red)' }}>{msg}</span>}
+        </div>
       </div>
     </div>
   );

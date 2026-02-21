@@ -93,3 +93,13 @@ export const POST = withAuthOrAdmin(async (req, agent) => {
   await logAudit(agent.userId, agent.id, 'memory.write', 'memory', key || undefined, content.slice(0, 100));
   return NextResponse.json({ ok: true });
 });
+
+export const DELETE = withAuthOrAdmin(async (req, agent) => {
+  await initSchema();
+  if (!agent.permissions.includes('write')) return NextResponse.json({ error: 'No write permission' }, { status: 403 });
+  const { id } = await req.json();
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  await db.prepare('DELETE FROM memories WHERE id = ? AND user_id = ?').run(id, agent.userId);
+  await logAudit(agent.userId, agent.id, 'memory.delete', 'memory', String(id));
+  return NextResponse.json({ ok: true });
+});

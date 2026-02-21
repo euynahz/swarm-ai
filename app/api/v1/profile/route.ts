@@ -58,3 +58,15 @@ export const PATCH = withAuth(async (req, agent) => {
   await logAudit(agent.userId, agent.id, 'profile.update', 'profile', layer, `${Object.keys(entries).length} entries`);
   return NextResponse.json({ ok: true });
 });
+
+export const DELETE = withAuth(async (req, agent) => {
+  await initSchema();
+  if (!agent.permissions.includes('write')) return NextResponse.json({ error: 'No write permission' }, { status: 403 });
+  const { layer, key } = await req.json();
+  if (!layer || !key) return NextResponse.json({ error: 'Missing layer or key' }, { status: 400 });
+  const old = await db.prepare('SELECT value FROM profiles WHERE user_id = ? AND layer = ? AND key = ?').get(agent.userId, layer, key) as any;
+  await db.prepare('DELETE FROM profiles WHERE user_id = ? AND layer = ? AND key = ?').run(agent.userId, layer, key);
+  if (old) await logProfileHistory(agent.userId, layer, key, old.value, '(deleted)', agent.id);
+  await logAudit(agent.userId, agent.id, 'profile.delete', 'profile', `${layer}.${key}`);
+  return NextResponse.json({ ok: true });
+});
