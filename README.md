@@ -11,7 +11,7 @@ Cross-agent user profile hub. Teach one agent, all agents remember.
 
 ### What is this?
 
-Swarm AI solves a simple problem: you use multiple AI agents (Claude Code, Cursor, OpenClaw, etc.), but each one starts fresh every session — asking your name, tech stack, preferences over and over again.
+Swarm AI solves a simple problem: you use multiple AI agents (Claude Code, Codex, Gemini CLI, OpenCode, Cursor, OpenClaw, iFlow, etc.), but each one starts fresh every session — asking your name, tech stack, preferences over and over again.
 
 Swarm AI is a **shared profile server** that any AI agent can read from and write to. One central place for your identity, preferences, work context, and memories.
 
@@ -189,11 +189,17 @@ bash skill/swarm-ai-skill/scripts/memory-read.sh "previous decisions"
 
 ### Platform-Specific Setup
 
-**OpenClaw** — Copy `skill/swarm-ai-skill/` to `~/.openclaw/workspace/skills/`
+| Platform | Config File | Setup |
+|----------|------------|-------|
+| **OpenClaw** | Skill | Copy `skill/swarm-ai-skill/` to `~/.openclaw/workspace/skills/` |
+| **Claude Code** | `CLAUDE.md` | Add `skill/CLAUDE.md` content to your project's CLAUDE.md |
+| **Codex** | `AGENTS.md` | Add `skill/CODEX.md` content to your project's AGENTS.md |
+| **Gemini CLI** | `GEMINI.md` | Add `skill/GEMINI.md` content to your project's GEMINI.md |
+| **OpenCode** | Instructions | Add `skill/OPENCODE.md` content to your agent instructions |
+| **iFlow** | Instructions | Add `skill/IFLOW.md` content to your workflow config |
+| **Cursor** | `.cursorrules` | Add bootstrap/observe script calls (see below) |
 
-**Claude Code** — Add `skill/CLAUDE.md` content to your project's CLAUDE.md
-
-**Cursor** — Add to `.cursorrules`:
+**Cursor** `.cursorrules` example:
 ```
 At session start, execute scripts/bootstrap.sh to load user context.
 When learning user preferences, use scripts/observe.sh to record them.
@@ -226,17 +232,22 @@ When learning user preferences, use scripts/observe.sh to record them.
 - **One-Command Install** — `npx @peonai/swarm` with interactive setup and optional service mode
 - **Docker Ready** — `docker compose up -d` one-liner deployment
 - **Management UI** — dark amber dashboard with i18n (EN/中文)
+- **7 Agent Platforms** — OpenClaw / Claude Code / Codex / Gemini CLI / OpenCode / iFlow / Cursor
 - **4 Integration Methods** — REST API / Shell Scripts / MCP Server / OpenAPI
 
 ## Architecture
 
 ```
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│  OpenClaw   │  │ Claude Code │  │   Cursor    │
-│   Agent A   │  │   Agent B   │  │   Agent C   │
-└──────┬──────┘  └──────┬──────┘  └──────┬──────┘
-       │                │                │
-       └────────────────┼────────────────┘
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│ OpenClaw │ │  Claude  │ │  Codex   │ │  Gemini  │
+│          │ │   Code   │ │          │ │   CLI    │
+└────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘
+     │            │            │            │
+┌────┴─────┐ ┌────┴─────┐     │            │
+│  Cursor  │ │ OpenCode │     │            │
+└────┬─────┘ └────┬─────┘     │            │
+     │            │            │            │
+     └────────────┴────────────┴────────────┘
                         │ REST API
                  ┌──────┴──────┐
                  │  Swarm AI   │
