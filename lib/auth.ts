@@ -1,42 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
 import { getAgentByKey } from './schema';
-import { createHmac, randomUUID, scryptSync, randomBytes } from 'crypto';
 
-const JWT_SECRET = process.env.SWARM_JWT_SECRET || 'change-me-in-production';
+const JWT_SECRET = new TextEncoder().encode(process.env.SWARM_JWT_SECRET || 'swarm-dev-secret');
 
-function b64url(s: string) { return Buffer.from(s).toString('base64url'); }
-function b64dec(s: string) { return Buffer.from(s, 'base64url').toString(); }
-
-export function signJwt(payload: Record<string, any>, expiresIn = 86400 * 7) {
-  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = b64url(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + expiresIn }));
-  const sig = createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
-  return `${header}.${body}.${sig}`;
-}
-
-export function verifyJwt(token: string): Record<string, any> | null {
+async function verifyJwt(token: string): Promise<{ userId: string } | null> {
   try {
-    const [h, b, sig] = token.split('.');
-    const expected = createHmac('sha256', JWT_SECRET).update(`${h}.${b}`).digest('base64url');
-    if (sig !== expected) return null;
-    const payload = JSON.parse(b64dec(b));
-    if (payload.exp && payload.exp < Date.now() / 1000) return null;
-    return payload;
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload.userId ? { userId: payload.userId as string } : null;
   } catch { return null; }
 }
-
-export function hashPassword(pw: string) {
-  const salt = randomBytes(16).toString('hex');
-  const hash = scryptSync(pw, salt, 64).toString('hex');
-  return `${salt}:${hash}`;
-}
-
-export function verifyPassword(pw: string, stored: string) {
-  const [salt, hash] = stored.split(':');
-  return scryptSync(pw, salt, 64).toString('hex') === hash;
-}
-
-export function genUserId() { return `u_${randomUUID().replace(/-/g, '').slice(0, 16)}`; }
 
 export function withAuth(handler: (req: NextRequest, agent: { id: string; userId: string; permissions: string }) => Promise<NextResponse>) {
   return async (req: NextRequest) => {
@@ -58,7 +31,7 @@ export function withAdmin(handler: (req: NextRequest, userId: string) => Promise
     }
     const jwt = req.headers.get('authorization')?.replace('Bearer ', '');
     if (jwt) {
-      const payload = verifyJwt(jwt);
+      const payload = await verifyJwt(jwt);
       if (payload?.userId) return handler(req, payload.userId);
     }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -75,7 +48,7 @@ export function withAuthOrAdmin(handler: (req: NextRequest, agent: { id: string;
       const agent = await getAgentByKey(key);
       if (agent) return handler(req, agent);
       // Try JWT
-      const payload = verifyJwt(key);
+      const payload = await verifyJwt(key);
       if (payload?.userId) return handler(req, { id: 'admin', userId: payload.userId, permissions: 'read,write' });
     }
     // Try admin token

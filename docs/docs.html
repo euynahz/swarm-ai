@@ -24,6 +24,7 @@
       <a href="#quickstart">Quick Start</a>
       <a href="#integration">Integration</a>
       <a href="#profile">Profile</a>
+      <a href="#memory">Memory</a>
       <a href="#api">API</a>
       <a href="https://github.com/euynahz/swarm-ai" class="nav-cta">GitHub</a>
     </div>
@@ -41,12 +42,17 @@
     <div class="sidebar-title">Concepts</div>
     <a href="#profile">Profile Structure</a>
     <a href="#confidence">Confidence Scoring</a>
+    <a href="#memory">Memory &amp; Search</a>
+    <a href="#reflect">Reflect</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-title">Reference</div>
     <a href="#api">API Endpoints</a>
     <a href="#scripts">Shell Scripts</a>
     <a href="#admin">Admin API</a>
+    <a href="#audit">Audit &amp; History</a>
+    <a href="#auth">Authentication</a>
+    <a href="#env">Environment</a>
   </div>
 </aside>
 
@@ -54,15 +60,29 @@
 
 <section id="quickstart" class="doc-section">
   <h1>Quick Start</h1>
-  <p>Get Swarm AI running locally in three steps.</p>
+  <p>Get Swarm AI running locally in one command.</p>
 
-  <h2>1. Clone and start the server</h2>
+  <h2>1. Install &amp; start</h2>
+  <pre><code>npx @peonai/swarm</code></pre>
+  <p>The interactive installer will ask for port (default <code>3777</code>), admin token, and whether to install as a background service (systemd on Linux, launchd on macOS).</p>
+
+  <h3>Service commands</h3>
+  <pre><code>npx @peonai/swarm start    # start the server
+npx @peonai/swarm stop     # stop
+npx @peonai/swarm status   # health check
+npx @peonai/swarm uninstall # remove service (keeps data)</code></pre>
+
+  <p>Verify with:</p>
+  <pre><code>curl http://localhost:3777/api/health</code></pre>
+
+  <h3>Alternative: Docker</h3>
+  <pre><code>docker compose up -d</code></pre>
+
+  <h3>Alternative: Manual</h3>
   <pre><code>git clone https://github.com/euynahz/swarm-ai.git
 cd swarm-ai
 npm install
 npm run dev</code></pre>
-  <p>The server starts at <code>http://localhost:3777</code>. Verify with:</p>
-  <pre><code>curl http://localhost:3777/api/health</code></pre>
 
   <h2>2. Register an agent</h2>
   <pre><code>curl -X POST http://localhost:3777/api/v1/admin/agents \
@@ -155,9 +175,11 @@ curl "http://localhost:3777/api/v1/profile?tag=preference" -H "Authorization: Be
         <tr><td><span class="method get">GET</span></td><td>/api/v1/profile</td><td>Read profile. Query params: <code>layer</code>, <code>tag</code></td></tr>
         <tr><td><span class="method patch">PATCH</span></td><td>/api/v1/profile</td><td>Update entries. Body: <code>{"layer":"...","entries":{...}}</code></td></tr>
         <tr><td><span class="method post">POST</span></td><td>/api/v1/profile/observe</td><td>Submit observations with confidence merging</td></tr>
-        <tr><td><span class="method get">GET</span></td><td>/api/v1/memory</td><td>Search memory. Query params: <code>q</code>, <code>tag</code>, <code>limit</code></td></tr>
-        <tr><td><span class="method post">POST</span></td><td>/api/v1/memory</td><td>Write memory. Body: <code>{"content":"...","tags":[...]}</code></td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/memory</td><td>Search memory. Params: <code>q</code>, <code>mode=semantic</code>, <code>tag</code>, <code>type</code>, <code>limit</code></td></tr>
+        <tr><td><span class="method post">POST</span></td><td>/api/v1/memory</td><td>Write memory (auto-embeds). Body: <code>{"content":"...","tags":[...],"type":"..."}</code></td></tr>
+        <tr><td><span class="method post">POST</span></td><td>/api/v1/reflect</td><td>Trigger memory→profile reflection. Body: <code>{"since":"ISO","limit":100}</code></td></tr>
         <tr><td><span class="method get">GET</span></td><td>/api/v1/persona/me</td><td>Read current agent persona</td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/persona/:agentId</td><td>Read another agent's persona</td></tr>
       </tbody>
     </table>
   </div>
@@ -201,15 +223,21 @@ curl "http://localhost:3777/api/v1/profile?tag=preference" -H "Authorization: Be
 
 <section id="admin" class="doc-section">
   <h1>Admin API</h1>
-  <p>Admin endpoints require an <code>X-Admin-Token</code> header (default: <code>swarm-admin-dev</code>).</p>
+  <p>Admin endpoints require an <code>X-Admin-Token</code> header or JWT <code>Authorization: Bearer &lt;jwt&gt;</code>.</p>
 
   <div class="api-table-wrap">
     <table class="api-table">
       <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
       <tbody>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/admin/agents</td><td>List all agents</td></tr>
         <tr><td><span class="method post">POST</span></td><td>/api/v1/admin/agents</td><td>Create agent. Body: <code>{"id":"...","name":"..."}</code></td></tr>
+        <tr><td><span class="method patch">PATCH</span></td><td>/api/v1/admin/agents</td><td>Update agent persona/name</td></tr>
         <tr><td><span class="method delete">DELETE</span></td><td>/api/v1/admin/agents/:id</td><td>Delete agent and revoke API key</td></tr>
         <tr><td><span class="method get">GET</span></td><td>/api/v1/admin/profile</td><td>View all raw profile data</td></tr>
+        <tr><td><span class="method put">PUT</span></td><td>/api/v1/admin/profile</td><td>Admin profile update</td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/admin/audit</td><td>Audit log. Params: <code>action</code>, <code>agent</code>, <code>limit</code></td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/admin/history</td><td>Profile change history. Params: <code>layer</code>, <code>key</code>, <code>limit</code></td></tr>
+        <tr><td><span class="method get">GET</span></td><td>/api/v1/admin/export</td><td>Export all data as JSON</td></tr>
       </tbody>
     </table>
   </div>

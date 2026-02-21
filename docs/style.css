@@ -81,6 +81,12 @@ a:hover { color: var(--amber2); }
 }
 .hero-sub { font-size: 1.15rem; color: var(--text2); max-width: 540px; margin: 0 auto 36px; }
 .hero-actions { display: flex; gap: 16px; justify-content: center; }
+.hero-code {
+  background: rgba(240,168,48,0.08); border: 1px solid rgba(240,168,48,0.2);
+  border-radius: 8px; padding: 14px 28px; font-family: var(--mono); font-size: 1.1rem;
+  color: var(--amber); margin: 0 auto 28px; width: fit-content;
+}
+.hero-code code { background: none; padding: 0; }
 
 .btn {
   display: inline-flex; align-items: center; padding: 12px 28px;

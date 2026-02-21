@@ -1,0 +1,10 @@
+{
+  "name": "@peonai/swarm",
+  "version": "0.1.0",
+  "description": "One-command install & run for Swarm AI",
+  "bin": { "swarm": "./bin/swarm.mjs" },
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "files": ["bin/", "lib/", "README.md"]
+}
