@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev -p 3777",
     "build": "next build",
-    "start": "next start -p 3777"
+    "start": "next start -p 3777",
+    "test": "vitest run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
@@ -20,6 +21,7 @@
     "@types/node": "^24.0.3",
     "@types/react": "^19.1.6",
     "tailwindcss": "^4.1.8",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
   }
 }
